@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		88A930BB2D410C0200141041 /* ActionMenu in Frameworks */ = {isa = PBXBuildFile; productRef = 88A930BA2D410C0200141041 /* ActionMenu */; };
+		8874DA6C2D41A1EE00898E9C /* ActionMenu in Frameworks */ = {isa = PBXBuildFile; productRef = 8874DA6B2D41A1EE00898E9C /* ActionMenu */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				88A930BB2D410C0200141041 /* ActionMenu in Frameworks */,
+				8874DA6C2D41A1EE00898E9C /* ActionMenu in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +70,7 @@
 			);
 			name = ActionMenuSample;
 			packageProductDependencies = (
-				88A930BA2D410C0200141041 /* ActionMenu */,
+				8874DA6B2D41A1EE00898E9C /* ActionMenu */,
 			);
 			productName = ActionMenuSample;
 			productReference = 888784632D3AE9D500613D51 /* ActionMenuSample.app */;
@@ -101,7 +101,7 @@
 			mainGroup = 8887845A2D3AE9D500613D51;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				88A930B92D410C0200141041 /* XCLocalSwiftPackageReference "../../../ActionMenu" */,
+				8874DA6A2D41A1EE00898E9C /* XCLocalSwiftPackageReference "../../../ActionMenu" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 888784642D3AE9D500613D51 /* Products */;
@@ -337,14 +337,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		88A930B92D410C0200141041 /* XCLocalSwiftPackageReference "../../../ActionMenu" */ = {
+		8874DA6A2D41A1EE00898E9C /* XCLocalSwiftPackageReference "../../../ActionMenu" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../../ActionMenu;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		88A930BA2D410C0200141041 /* ActionMenu */ = {
+		8874DA6B2D41A1EE00898E9C /* ActionMenu */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ActionMenu;
 		};

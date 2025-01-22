@@ -26,11 +26,11 @@ extension PrimitiveButtonStyle where Self == ActionMenuButtonStyle {
 
 struct ActionMenuButtonStyle: PrimitiveButtonStyle {
   @Environment(\.dismiss) private var dismiss
-  @State private var isPressed = false
-  
+  @State private var shouldExecuteAction = false
+
   func makeBody(configuration: Configuration) -> some View {
     Button {
-      configuration.trigger()
+      shouldExecuteAction = true
       dismiss()
     } label: {
       if configuration.role == .destructive {
@@ -38,6 +38,11 @@ struct ActionMenuButtonStyle: PrimitiveButtonStyle {
           .foregroundStyle(Color(.systemRed))
       } else {
         configuration.label
+      }
+    }
+    .onDisappear {
+      if shouldExecuteAction {
+        configuration.trigger()
       }
     }
   }
@@ -49,7 +54,7 @@ extension LabelStyle where Self == MenuLabelStyle {
 
 struct MenuLabelStyle: LabelStyle {
   @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 22.0
-  
+
   func makeBody(configuration: Configuration) -> some View {
     HStack(spacing: 22) {
       configuration.title

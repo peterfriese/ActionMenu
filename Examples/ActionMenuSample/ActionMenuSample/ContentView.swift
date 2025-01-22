@@ -23,6 +23,9 @@ struct ContentView: View {
   @State private var fruits = ["Apple", "Banana", "Orange", "Mango", "Pear", "Grape", "Pineapple", "Strawberry"]
   @State private var isMoreActionTapped = false
   @State private var selectedFruit: String? = nil
+  @State private var isSecondarySheetPresented = false
+
+  @Environment(\.share) private var share
 
   var body: some View {
     NavigationStack {
@@ -58,6 +61,14 @@ struct ContentView: View {
               fruits[index] = selectedFruit.lowercased()
             }
           }
+
+          Button("Say hello", systemImage: "quote.bubble.fill") {
+            isSecondarySheetPresented.toggle()
+          }
+
+          Button("Share", systemImage: "square.and.arrow.up") {
+            share("Some test")
+          }
         }
 
         Section {
@@ -70,6 +81,9 @@ struct ContentView: View {
             }
           }
         }
+      }
+      .sheet(isPresented: $isSecondarySheetPresented) {
+        Text("Hello, World! Here is a \(selectedFruit ?? "no fruit")")
       }
     }
   }
