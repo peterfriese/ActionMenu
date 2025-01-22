@@ -2,6 +2,8 @@
 
 ActionMenu is a SwiftUI library that provides a flexible and easy-to-use menu component for iOS applications, similar to the one in Apple's built-in mail app.
 
+![Video showing an iOS UI with a list of fruits. As the user selects the "More" action from the swipe action bar, a bottom sheet with a number of actions appears. The user selects several of the listed actions to manipulate the fruit list items.](Resources/demo.gif)
+
 ## Requirements
 
 - iOS 18.0+
@@ -41,12 +43,14 @@ targets: [
 ## Quick Start
 
 1. Import the package in your SwiftUI file:
+
 ```swift
 import SwiftUI
 import ActionMenu
 ```
 
 2. Use the `.actionMenu` modifier on any view:
+
 ```swift
 .actionMenu(title: "Actions", isPresented: $isShowingMenu) {
   Button("Option 1") {
