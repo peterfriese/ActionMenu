@@ -69,6 +69,18 @@ struct ContentView: View {
           Button("Share", systemImage: "square.and.arrow.up") {
             share("Some test")
           }
+
+          Button("Duplicate", systemImage: "doc.on.doc") {
+            if let selectedFruit, let index = fruits.firstIndex(of: selectedFruit) {
+              fruits.insert(selectedFruit, at: index + 1)
+            }
+          }
+          
+          Button("Duplicate 2", systemImage: "doc.on.doc") {
+            if let selectedFruit, let index = fruits.firstIndex(of: selectedFruit) {
+              fruits.insert(selectedFruit, at: index + 1)
+            }
+          }
         }
 
         Section {

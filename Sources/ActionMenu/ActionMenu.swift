@@ -22,20 +22,29 @@ struct ActionMenu<Content: View>: View {
   @Environment(\.dismiss) private var dismiss
 
   let title: String
-  let content: () -> Content
+  @Binding var contentSize: CGSize
+  let content: Content
 
   init(
-    title: String = "Options", @ViewBuilder content: @escaping () -> Content
+    title: String = "Options",
+    contentSize: Binding<CGSize>,
+    @ViewBuilder content: () -> Content
   ) {
     self.title = title
-    self.content = content
+    self._contentSize = contentSize
+    self.content = content()
   }
 
   var body: some View {
     NavigationStack {
       List {
-        content()
+        content
       }
+      .onScrollGeometryChange(for: CGSize.self, of: { proxy in
+        proxy.contentSize
+      }, action: { _, newSize in
+        contentSize = newSize
+      })
       .labelStyle(.menu)
       .buttonStyle(.action)
       .navigationTitle(title)
@@ -54,23 +63,29 @@ struct ActionMenu<Content: View>: View {
 struct ActionMenuModifier<MenuContent: View>: ViewModifier {
   let title: String
   @Binding var isPresented: Bool
-  let menuContent: () -> MenuContent
+  let menuContent: MenuContent
+
+  @State private var menuContentSize: CGSize = .zero
 
   @Environment(\.dismiss) private var dismiss
 
-  init(title: String, isPresented: Binding<Bool>, @ViewBuilder  menuContent: @escaping () -> MenuContent) {
+  init(title: String, isPresented: Binding<Bool>, @ViewBuilder  menuContent: () -> MenuContent) {
     self.title = title
     self._isPresented = isPresented
-    self.menuContent = menuContent
+    self.menuContent = menuContent()
   }
 
   func body(content: Content) -> some View {
     content
       .sheet(isPresented: $isPresented) {
-        ActionMenu(title: title) {
-          menuContent()
+        ActionMenu(title: title, contentSize: $menuContentSize) {
+          menuContent
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents(
+          menuContentSize == .zero
+          ? [.medium, .large]
+          : [.height(menuContentSize.height + 34), .large]
+        )
       }
   }
 }
@@ -141,11 +156,11 @@ extension View {
   ]
   @Previewable @State var selectedFruit: String? = nil
 
-  ActionMenu(title: "Actions") {
+  ActionMenu(title: "Actions", contentSize: .constant(.zero)) {
     Section("Text Operations") {
       Button("Uppercase", systemImage: "characters.uppercase") {
         if let selectedFruit = selectedFruit,
-          let index = fruits.firstIndex(of: selectedFruit)
+           let index = fruits.firstIndex(of: selectedFruit)
         {
           fruits[index] = selectedFruit.uppercased()
         }
@@ -154,7 +169,7 @@ extension View {
 
       Button("Lowercase", systemImage: "characters.lowercase") {
         if let selectedFruit = selectedFruit,
-          let index = fruits.firstIndex(of: selectedFruit)
+           let index = fruits.firstIndex(of: selectedFruit)
         {
           fruits[index] = selectedFruit.lowercased()
         }
@@ -164,7 +179,7 @@ extension View {
     Section {
       Button("Delete Item", systemImage: "trash", role: .destructive) {
         if let selectedFruit = selectedFruit,
-          let index = fruits.firstIndex(of: selectedFruit)
+           let index = fruits.firstIndex(of: selectedFruit)
         {
           fruits.remove(at: index)
         }
