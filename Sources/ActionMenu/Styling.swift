@@ -19,6 +19,11 @@
 import SwiftUI
 
 extension PrimitiveButtonStyle where Self == ActionMenuButtonStyle {
+  /// A button style that dismisses the current view when the button is tapped.
+  ///
+  /// This style is used for the buttons within the action menu. When a button with this style is tapped,
+  /// it first dismisses the sheet presenting the action menu, and then executes the button's action.
+  /// This ensures that the menu is gone before the action is performed.
   static var action: ActionMenuButtonStyle {
     ActionMenuButtonStyle()
   }
@@ -49,11 +54,16 @@ struct ActionMenuButtonStyle: PrimitiveButtonStyle {
 }
 
 extension LabelStyle where Self == MenuLabelStyle {
+  /// A label style that displays the title on the left and the icon on the right.
+  ///
+  /// This style is used for the labels within the action menu. It places the label's title on the leading edge
+  /// and its icon on the trailing edge, with a spacer in between to push them to the opposite sides.
   static var menu: MenuLabelStyle { .init() }
 }
 
 struct MenuLabelStyle: LabelStyle {
   @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 22.0
+
 
   func makeBody(configuration: Configuration) -> some View {
     HStack(spacing: 22) {
