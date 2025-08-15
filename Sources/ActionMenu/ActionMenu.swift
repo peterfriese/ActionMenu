@@ -93,6 +93,47 @@ struct ActionMenuModifier<MenuContent: View>: ViewModifier {
 }
 
 extension View {
+  /// Presents an action menu sheet when a binding to a Boolean value that you provide is true.
+  ///
+  /// Use this modifier to present a menu of actions to the user, similar to the menu in Apple's Mail app.
+  /// The menu is presented as a sheet from the bottom of the screen.
+  ///
+  /// In the example below, a list of fruits is displayed. When the user swipes left on a row, a "More" button
+  /// is revealed. Tapping this button sets the `isMoreActionTapped` state variable to `true`, which
+  /// triggers the presentation of the action menu.
+  ///
+  /// ```swift
+  /// struct ContentView: View {
+  ///   @State private var fruits = ["Apple", "Banana", "Orange"]
+  ///   @State private var isMoreActionTapped = false
+  ///   @State private var selectedFruit: String? = nil
+  ///
+  ///   var body: some View {
+  ///     List(fruits, id: \.self) { fruit in
+  ///       Text(fruit)
+  ///         .swipeActions {
+  ///           Button("More", systemImage: "ellipsis.circle") {
+  ///             selectedFruit = fruit
+  ///             isMoreActionTapped.toggle()
+  ///           }
+  ///         }
+  ///     }
+  ///     .actionMenu(title: "Actions", isPresented: $isMoreActionTapped) {
+  ///       Button("Uppercase", systemImage: "characters.uppercase") {
+  ///         // action for uppercasing the selected fruit
+  ///       }
+  ///       Button("Delete", role: .destructive) {
+  ///         // action for deleting the selected fruit
+  ///       }
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - title: The title to display in the navigation bar of the action menu.
+  ///   - isPresented: A binding to a Boolean value that determines whether to present the action menu.
+  ///   - content: A view builder that creates the content of the action menu. This is typically a list of `Button`s.
   public func actionMenu(
     title: String, isPresented: Binding<Bool>,
     @ViewBuilder content: @escaping () -> some View
