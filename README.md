@@ -101,10 +101,6 @@ The `ActionMenu` can be styled using standard SwiftUI techniques. The default ap
 
 To ensure the menu looks "at home" on different iOS versions, `ActionMenu` uses a backporting pattern for some of its styles. For example, the toolbar button on the sheet will use the `.glassProminent` button style on iOS 26 and newer, while falling back to a standard button style on older versions.
 
-## Documentation
-
-The full documentation for the `ActionMenu` package is available here: [https://peterfriese.github.io/ActionMenu/documentation/actionmenu/](https://peterfriese.github.io/ActionMenu/documentation/actionmenu/)
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a PR.
