@@ -51,9 +51,11 @@ struct ActionMenu<Content: View>: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
-          Button("Done") {
+          Button("Done", systemImage: "checkmark") {
             dismiss()
           }
+          .labelStyle(.toolbar)
+          .buttonStyle(.toolbarProminent)
         }
       }
     }
