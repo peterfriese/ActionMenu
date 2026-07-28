@@ -7,7 +7,18 @@ ActionMenu is a SwiftUI library that provides a flexible and easy-to-use menu co
 ## Requirements
 
 - iOS 18.0+
-- Swift 6.0+
+- Swift 7.0+
+
+## Migration to `@ContentBuilder`
+
+ActionMenu uses Apple's new `@ContentBuilder` (introduced at WWDC26) instead of `@ViewBuilder` for its content closures.
+
+- **Backward compatible** — existing code compiles without any changes
+- **Better performance** — provides improved type-checking performance for complex menu content
+- **No runtime impact** — works with any deployment target; no `@available` guards needed
+- **Requires Swift 7.0+ / Xcode 27+** to build
+
+All public API content closures in ActionMenu (`.actionMenu(...)`, `ActionMenu.init(...)`) accept `@ContentBuilder` closures, but you don't need to change any code — `@ContentBuilder` is fully source-compatible with `@ViewBuilder`.
 
 ## Installation
 
@@ -49,7 +60,7 @@ import SwiftUI
 import ActionMenu
 ```
 
-2. Use the `.actionMenu` modifier on any view:
+2. Use the `.actionMenu` modifier on any view. The content closure uses `@ContentBuilder`, which is source-compatible with `@ViewBuilder`:
 
 ```swift
 .actionMenu(title: "Actions", isPresented: $isShowingMenu) {
@@ -64,7 +75,7 @@ import ActionMenu
 
 ## Example
 
-Here's a complete example showing how to use ActionMenu with a list:
+Here's a complete example showing how to use ActionMenu with a list (the content closure uses `@ContentBuilder`):
 
 ```swift
 struct ContentView: View {
@@ -97,9 +108,9 @@ struct ContentView: View {
 
 The `ActionMenu` can be styled using standard SwiftUI techniques. The default appearance is designed to mimic the look and feel of the menu in Apple's Mail app.
 
-### Backported Styles
+### Toolbar Dismiss Button
 
-To ensure the menu looks "at home" on different iOS versions, `ActionMenu` uses a backporting pattern for some of its styles. For example, the toolbar button on the sheet will use the `.glassProminent` button style on iOS 26 and newer, while falling back to a standard button style on older versions.
+The toolbar uses a standard `xmark.circle.fill` dismiss button, consistent with the Mail.app action menu pattern. No backporting is needed — the button works across all supported iOS versions.
 
 ## Contributing
 

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		8874DA6C2D41A1EE00898E9C /* ActionMenu in Frameworks */ = {isa = PBXBuildFile; productRef = 8874DA6B2D41A1EE00898E9C /* ActionMenu */; };
+		887C69D030188CD300E80C65 /* ActionMenu in Frameworks */ = {isa = PBXBuildFile; productRef = 887C69CF30188CD300E80C65 /* ActionMenu */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8874DA6C2D41A1EE00898E9C /* ActionMenu in Frameworks */,
+				887C69D030188CD300E80C65 /* ActionMenu in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +70,7 @@
 			);
 			name = ActionMenuSample;
 			packageProductDependencies = (
-				8874DA6B2D41A1EE00898E9C /* ActionMenu */,
+				887C69CF30188CD300E80C65 /* ActionMenu */,
 			);
 			productName = ActionMenuSample;
 			productReference = 888784632D3AE9D500613D51 /* ActionMenuSample.app */;
@@ -101,7 +101,7 @@
 			mainGroup = 8887845A2D3AE9D500613D51;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				8874DA6A2D41A1EE00898E9C /* XCLocalSwiftPackageReference "../../../ActionMenu" */,
+				887C69CE30188CD300E80C65 /* XCLocalSwiftPackageReference "../../../ActionMenu" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 888784642D3AE9D500613D51 /* Products */;
@@ -269,7 +269,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -299,7 +299,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -337,14 +337,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		8874DA6A2D41A1EE00898E9C /* XCLocalSwiftPackageReference "../../../ActionMenu" */ = {
+		887C69CE30188CD300E80C65 /* XCLocalSwiftPackageReference "../../../ActionMenu" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../../ActionMenu;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		8874DA6B2D41A1EE00898E9C /* ActionMenu */ = {
+		887C69CF30188CD300E80C65 /* ActionMenu */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ActionMenu;
 		};

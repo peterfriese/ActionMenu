@@ -10,8 +10,14 @@ DerivedData/
 # OpenCode: holds per-project API keys. Use opencode.example.jsonc as template.
 opencode.jsonc
 
-# OpenCode: agent skills installed at project scope
-.opencode/skills/
+# Luca tools & skills
+.luca/tools
+.luca/skills
+
+# Agent skills (installed via luca install)
+.agents/skills
+
+# OpenCode runtime artifacts
 .opencode/node_modules/
 .opencode/package.json
 .opencode/package-lock.json

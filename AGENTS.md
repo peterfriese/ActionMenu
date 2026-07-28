@@ -12,7 +12,7 @@ You are an AI engineering agent helping build **ActionMenu**, a SwiftUI library 
 
 ## Technical Stack
 
-- **Language:** Swift 6
+- **Language:** Swift 7.0
 - **UI Framework:** SwiftUI (iOS 18+)
 - **Package Manager:** SPM (single target: `ActionMenu`)
 - **Concurrency:** Swift strict concurrency checking (`Sendable`, `@MainActor`)
@@ -61,6 +61,30 @@ public protocol ActionMenuStyle: Sendable {
 }
 ```
 
+### ContentBuilder Adoption
+
+The library uses Apple's `@ContentBuilder` (introduced at WWDC26) instead of `@ViewBuilder` for all public API content closures.
+
+- Requires Swift 7.0+ / Xcode 27+ to build
+- Fully backward compatible at runtime — works with any deployment target
+- Source-compatible with `@ViewBuilder` — existing code compiles without changes
+- Provides better type-checking performance for complex menu content
+
+**Convention:**
+
+```swift
+public func actionMenu(
+  title: String,
+  isPresented: Binding<Bool>,
+  @ContentBuilder content: @escaping () -> some View
+) -> some View {
+  // ...
+}
+```
+
+Do NOT add `@available` guards — `@ContentBuilder` is a compiler feature that does not
+affect runtime compatibility.
+
 ### Styling System
 
 - Define a `ActionMenuStyle` protocol with required methods
@@ -79,6 +103,29 @@ Sources/
 Examples/
   ActionMenuSample/          — Sample iOS app demonstrating usage
 ```
+
+## Tooling & Skills
+
+### Luca
+
+Tooling is managed by Luca CLI. Luca version is pinned in `.luca-version`.
+
+### Setup
+
+Run `luca install` in the project root to install all tools and skills.
+
+### Installed Agent Skills
+
+| Skill | Source | Purpose |
+|-------|--------|---------|
+| **swiftui-pro** | twostraws/SwiftUI-Agent-Skill | SwiftUI best practices, view modifiers, data flow, accessibility |
+| **swift-concurrency-pro** | twostraws/Swift-Concurrency-Agent-Skill | async/await, actors, Sendable, structured concurrency |
+| **swift-testing-pro** | twostraws/Swift-Testing-Agent-Skill | Swift Testing framework patterns, test structure |
+| **stratos-core** | peterfriese/Stratos | API design via Progressive Disclosure methodology |
+| **stratos-swift** | peterfriese/Stratos | Swift library/SDK design patterns |
+| **stratos-swiftui** | peterfriese/Stratos | SwiftUI component design patterns, modifier chains, Style protocols |
+
+All skills live in `.agents/skills/`. Skills are loaded automatically by OpenCode when relevant tasks are detected.
 
 ## OpenCode Agent Fleet
 

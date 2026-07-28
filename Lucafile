@@ -1,0 +1,14 @@
+tools: []
+skills:
+  - repository: twostraws/SwiftUI-Agent-Skill
+  - repository: twostraws/Swift-Concurrency-Agent-Skill
+  - repository: twostraws/Swift-Testing-Agent-Skill
+  - repository: peterfriese/Stratos
+    name: stratos-core
+  - repository: peterfriese/Stratos
+    name: stratos-swift
+  - repository: peterfriese/Stratos
+    name: stratos-swiftui
+
+agents:
+  - opencode

@@ -28,7 +28,7 @@ struct ActionMenu<Content: View>: View {
   init(
     title: String = "Options",
     contentSize: Binding<CGSize>,
-    @ViewBuilder content: () -> Content
+    @ContentBuilder content: () -> Content
   ) {
     self.title = title
     self._contentSize = contentSize
@@ -52,11 +52,15 @@ struct ActionMenu<Content: View>: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
-          Button("Done", systemImage: "checkmark") {
-            dismiss()
+          if #available(iOS 26, *) {
+            Button("", systemImage: "xmark") {
+              dismiss()
+            }
+          } else {
+            Button("Done") {
+              dismiss()
+            }
           }
-          .labelStyle(.toolbar)
-          .buttonStyle(.toolbarProminent)
         }
       }
     }
@@ -72,7 +76,7 @@ struct ActionMenuModifier<MenuContent: View>: ViewModifier {
 
   @Environment(\.dismiss) private var dismiss
 
-  init(title: String, isPresented: Binding<Bool>, @ViewBuilder  menuContent: () -> MenuContent) {
+  init(title: String, isPresented: Binding<Bool>, @ContentBuilder menuContent: () -> MenuContent) {
     self.title = title
     self._isPresented = isPresented
     self.menuContent = menuContent()
@@ -134,10 +138,10 @@ extension View {
   /// - Parameters:
   ///   - title: The title to display in the navigation bar of the action menu.
   ///   - isPresented: A binding to a Boolean value that determines whether to present the action menu.
-  ///   - content: A view builder that creates the content of the action menu. This is typically a list of `Button`s.
+  ///   - content: A `@ContentBuilder` closure that creates the content of the action menu. This is typically a list of `Button`s.
   public func actionMenu(
     title: String, isPresented: Binding<Bool>,
-    @ViewBuilder content: @escaping () -> some View
+    @ContentBuilder content: @escaping () -> some View
   ) -> some View {
     modifier(
       ActionMenuModifier(
