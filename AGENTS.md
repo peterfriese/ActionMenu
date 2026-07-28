@@ -9,10 +9,11 @@ You are an AI engineering agent helping build **ActionMenu**, a SwiftUI library 
 3. **SwiftUI Previews:** Ensure every reusable component has a working `#Preview` with sample data.
 4. **No Clutter:** Do not create files outside the established project structure.
 5. **Public API is sacred:** Never break backward compatibility without a documented deprecation path.
+6. **Load skills before relevant work:** Before starting a task that matches a skill's description, use the `skill` tool to load it. Skills are NOT loaded automatically — you must invoke them explicitly. Refer to the Installed Agent Skills table below to determine which skill applies.
 
 ## Technical Stack
 
-- **Language:** Swift 7.0
+- **Language:** Swift 6.3
 - **UI Framework:** SwiftUI (iOS 18+)
 - **Package Manager:** SPM (single target: `ActionMenu`)
 - **Concurrency:** Swift strict concurrency checking (`Sendable`, `@MainActor`)
@@ -65,7 +66,7 @@ public protocol ActionMenuStyle: Sendable {
 
 The library uses Apple's `@ContentBuilder` (introduced at WWDC26) instead of `@ViewBuilder` for all public API content closures.
 
-- Requires Swift 7.0+ / Xcode 27+ to build
+- Requires Swift 6.0+ / Xcode 27+ to build
 - Fully backward compatible at runtime — works with any deployment target
 - Source-compatible with `@ViewBuilder` — existing code compiles without changes
 - Provides better type-checking performance for complex menu content
@@ -125,7 +126,18 @@ Run `luca install` in the project root to install all tools and skills.
 | **stratos-swift** | peterfriese/Stratos | Swift library/SDK design patterns |
 | **stratos-swiftui** | peterfriese/Stratos | SwiftUI component design patterns, modifier chains, Style protocols |
 
-All skills live in `.agents/skills/`. Skills are loaded automatically by OpenCode when relevant tasks are detected.
+### When to Load Which Skill
+
+| Task type | Skill to load |
+|-----------|---------------|
+| Designing new public API, protocols, modifiers | `stratos-core`, `stratos-swift`, `stratos-swiftui` |
+| Implementing a SwiftUI component or ViewModifier | `stratos-swiftui`, `swiftui-pro` |
+| Reviewing SwiftUI code for best practices | `swiftui-pro` |
+| Reviewing concurrency correctness (Sendable, actors) | `swift-concurrency-pro` |
+| Writing unit tests with Swift Testing | `swift-testing-pro` |
+| Building a Swift library/SDK | `stratos-swift` |
+
+All skills live in `.agents/skills/`. Skills must be loaded explicitly using the `skill` tool when a task matches the skill's description. See Core Directive 6.
 
 ## OpenCode Agent Fleet
 

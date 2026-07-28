@@ -7,7 +7,7 @@ ActionMenu is a SwiftUI library that provides a flexible and easy-to-use menu co
 ## Requirements
 
 - iOS 18.0+
-- Swift 7.0+
+- Swift 6.0+
 
 ## Migration to `@ContentBuilder`
 
@@ -16,7 +16,7 @@ ActionMenu uses Apple's new `@ContentBuilder` (introduced at WWDC26) instead of 
 - **Backward compatible** — existing code compiles without any changes
 - **Better performance** — provides improved type-checking performance for complex menu content
 - **No runtime impact** — works with any deployment target; no `@available` guards needed
-- **Requires Swift 7.0+ / Xcode 27+** to build
+- **Requires Swift 6.0+ / Xcode 27+** to build
 
 All public API content closures in ActionMenu (`.actionMenu(...)`, `ActionMenu.init(...)`) accept `@ContentBuilder` closures, but you don't need to change any code — `@ContentBuilder` is fully source-compatible with `@ViewBuilder`.
 
