@@ -70,7 +70,7 @@ struct MenuLabelStyle: LabelStyle {
       configuration.title
       Spacer()
       configuration.icon
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(Color.primary)
         .font(.system(size: iconSize, weight: .light))
     }
   }

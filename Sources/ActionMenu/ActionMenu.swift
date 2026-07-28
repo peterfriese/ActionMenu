@@ -47,6 +47,7 @@ struct ActionMenu<Content: View>: View {
       })
       .labelStyle(.menu)
       .buttonStyle(.action)
+      .tint(.primary)
       .navigationTitle(title)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {

@@ -6,3 +6,12 @@ DerivedData/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
+
+# OpenCode: holds per-project API keys. Use opencode.example.jsonc as template.
+opencode.jsonc
+
+# OpenCode: agent skills installed at project scope
+.opencode/skills/
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
