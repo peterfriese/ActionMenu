@@ -73,12 +73,8 @@ public protocol ActionMenuStyle: Sendable {
 Sources/
   ActionMenu/
     ActionMenu.swift         — View modifier entry point
-    ActionMenuStyle.swift    — Styling protocol and environment key
-    ActionMenuConfiguration.swift — Configuration model
-    ActionMenuSheet.swift    — Sheet content view
-    DefaultActionMenuStyle.swift — Default style implementation
-    Backports.swift          — iOS version backporting utilities
-    PreviewContent.swift     — Sample data for previews
+    Styling.swift            — Button and label styles (MenuLabelStyle, ActionMenuButtonStyle)
+    Backport.swift           — iOS version backporting utilities
 
 Examples/
   ActionMenuSample/          — Sample iOS app demonstrating usage
@@ -254,4 +250,38 @@ extension View {
     }
   }
 }
+
+### Preventing Accent Color Bleed in Menu Buttons
+
+When building a sheet-based menu with buttons (like ActionMenu), SwiftUI's `Button` automatically tints its label using the environment's accent color. This causes icons and text to render in the blue accent color instead of a neutral foreground color, which is inconsistent with Apple's Mail.app-style action menu appearance.
+
+To fix this, apply two changes:
+
+1. **On the container:** Add `.tint(.primary)` to the outermost container (List, VStack, etc.) to neutralise the environment tint for all buttons inside.
+2. **On label styles:** Ensure any custom `LabelStyle` used for menu rows explicitly sets `.foregroundStyle(Color.primary)` on icons, rather than relying on `.foregroundStyle(Color.accentColor)` or the default tint.
+
+**Pattern:**
+
+```swift
+struct ActionMenu: View {
+  var body: some View {
+    List {
+      Button("Reply") { /* ... */ }
+      Button("Forward") { /* ... */ }
+    }
+    .tint(.primary)  // Prevents accent color from bleeding into buttons
+  }
+}
+
+struct MenuLabelStyle: LabelStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    HStack {
+      configuration.icon
+        .foregroundStyle(Color.primary)  // Explicitly use primary, not accent
+      configuration.title
+    }
+  }
+}
 ```
+
+This pattern ensures buttons render with neutral foreground colors regardless of the app's accent/tint color configuration.
