@@ -231,6 +231,12 @@ After completing any task, IMMEDIATELY update:
 ### 4. Prohibited Technologies
 
 - No UIKit unless SwiftUI is genuinely impossible for the use case
+  - **Documented exception — programmatic share presentation:** SwiftUI's `ShareLink`
+    only presents when its rendered view is tapped; there is no programmatic API to
+    present a share sheet from a button *action*. When an action must present a share
+    sheet after the action menu dismisses (the deferred-trigger contract), use UIKit's
+    `UIActivityViewController`, presented from the presenting root view. Reference
+    implementation: `Examples/ActionMenuSample/ActionMenuSample/ShareAction.swift`.
 - No Combine unless explicitly approved — prefer async/await and `@Observable`
 - No third-party dependencies unless explicitly approved — this is a dependency-free library
 
@@ -400,3 +406,18 @@ This behavior is covered by the `ActionMenuSampleUITests` XCUITest suite.
 - It falls back to `.medium` until the first measurement so the sheet never flashes at zero height, and keeps `.large` as an additional detent. The zero-sized pre-layout scroll-geometry callback is skipped so it cannot collapse the sheet.
 - It throttles detent updates: re-applies only when the target changes meaningfully since the last applied detent (`contentHeight == 0 || abs(target - contentHeight) > 1`).
 - Conventions: `title` defaults to `"Options"` consistently on both `ActionMenu.init` and the public `.actionMenu(...)` modifier; public content closures are non-escaping `@ContentBuilder` closures (consumed synchronously).
+
+### Share Action Inside the Menu (Deferred + UIKit Exception)
+
+The sample's Share row cannot be a `ShareLink` rendered inside the action menu:
+- `share(...)`/`ShareLink` returns a *view* that only presents when tapped while alive
+  in the hierarchy. Calling it from a `Button` action builds and discards the view — a
+  silent no-op.
+- A `ShareLink` row inside the menu is also subject to the ambient
+  `.buttonStyle(ActionMenuButtonStyle)`, which dismisses the sheet without presenting.
+
+Working pattern: a menu `Button` sets a deferred flag (fires after the menu dismisses,
+per the deferred-trigger contract); the root view then presents a UIKit
+`UIActivityViewController` (via a `UIViewControllerRepresentable` in a `.sheet`, or from
+the root view controller). This is the project's documented UIKit exception — programmatic
+share presentation is genuinely impossible in pure SwiftUI.

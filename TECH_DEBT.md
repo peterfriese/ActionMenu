@@ -17,6 +17,8 @@ Consolidated from the full-project audit (2026-08-13). Work through items step b
 > - `8972b31` refactor: default actionMenu title to Options
 > - `b189e40` refactor: tighten detent throttle comparison
 > - `7c6a3a8` docs: document actionMenu title default
+> - `a9d351e` fix: present deferred share sheet via UIActivityViewController
+> - `9b5dd6f` test: assert share sheet presents after menu dismisses
 
 ## 1. Docs describe a library that doesn't exist (needs a decision)
 
@@ -46,7 +48,7 @@ Consolidated from the full-project audit (2026-08-13). Work through items step b
 
 - [x] **Align `IPHONEOS_DEPLOYMENT_TARGET`** — `18.2` at project level vs `18.6` at target level in `project.pbxproj`. Effort: S. *(Committed 2026-08-13: `88d5877` — project level now `18.6`; all targets at `18.6`.)*
 - [x] **Bump `SWIFT_VERSION` from 5.0 to 6.0** — the app builds against a Swift-6 package. Effort: S. *(Committed 2026-08-13: `d45cedc` — app target now Swift 6.0; zero strict-concurrency errors surfaced.)*
-- [x] **Replace `ShareAction.swift`'s `UIActivityViewController` with `ShareLink`/`Transferable`** — UIKit violates the project's own no-UIKit rule; also drop the dead `subject:`/`message:` parameters, fix the inert `@preconcurrency`/Sendable gap, and drop `public` on the app-target type. Effort: S. *(Committed 2026-08-13: `a0f75dc`. Note: the Share row is now a bare `ShareLink`, so it presents the share sheet over the still-open menu — the deferred-trigger contract applies only to `Button`s wrapped by `ActionMenuButtonStyle`.)*
+- [x] **Replace `ShareAction.swift`'s `UIActivityViewController` with `ShareLink`/`Transferable`** — UIKit violates the project's own no-UIKit rule; also drop the dead `subject:`/`message:` parameters, fix the inert `@preconcurrency`/Sendable gap, and drop `public` on the app-target type. Effort: S. *(Committed 2026-08-13: `a0f75dc`. The `ShareLink`-in-menu approach was subsequently abandoned: `ShareLink`/`share(...)` returns a view that only presents when tapped, so a share row rendered inside the menu silently no-ops (and the ambient `ActionMenuButtonStyle` dismisses without presenting). The share sheet is now presented after the menu dismisses via UIKit's `UIActivityViewController` (`a9d351e`) — the project's documented UIKit exception for programmatic share presentation, see AGENTS.md.)*
 - [x] **De-triplicate the fruit-demo logic** — the two library `#Preview` blocks and the sample app each re-implement the same uppercase/lowercase/delete demo. Extract a shared demo view/model. Effort: M. *(Committed 2026-08-13: `f559c06` — the sample-side extraction is done: new `FruitStore` + `FruitDemoView`, hosted by `ContentView`; the two library `#Preview` blocks in `Sources/ActionMenu/ActionMenu.swift` still duplicate the demo and are tracked as a WP4 follow-up.)*
 
 ## 5. Testing
