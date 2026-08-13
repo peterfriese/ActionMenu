@@ -23,19 +23,25 @@ import SwiftUI
 /// It measures the scroll content size of the modified view (typically a `List`) and applies
 /// the measured height as a `.height` presentation detent. The scroll content size is measured
 /// instead of the view's own frame to avoid a feedback loop between the detent height and the
-/// measured size. A `.medium` detent is used as a fallback until the first measurement
-/// completes, preventing an invisible, zero-height sheet from flashing.
+/// measured size. The scroll view's content insets (nav bar, safe areas) are added at runtime
+/// so the sheet fits both the content and its chrome without a magic constant. A `.medium`
+/// detent is used as a fallback until the first measurement completes, preventing an invisible,
+/// zero-height sheet from flashing.
 struct SelfSizingSheetModifier: ViewModifier {
   @State private var contentHeight: CGFloat = 0
 
   func body(content: Content) -> some View {
     content
-      .onScrollGeometryChange(for: CGSize.self, of: { proxy in
-        proxy.contentSize
-      }, action: { oldSize, newSize in
-        // Update when not yet measured, or when the height changed meaningfully since the last applied detent.
-        if contentHeight == 0 || abs(newSize.height - contentHeight) > 1 {
-          contentHeight = newSize.height
+      .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }, action: { oldGeo, newGeo in
+        // Skip until the List has laid out its content: the zero-sized first callback must not
+        // collapse the sheet below the `.medium` fallback.
+        guard newGeo.contentSize.height > 0 else { return }
+        // The detent must cover the scroll content PLUS the scroll view's content insets (nav bar
+        // and top safe area, home-indicator bottom safe area), all measured at runtime. The content
+        // size is independent of the viewport, so this stays stable once the correct detent applies.
+        let target = newGeo.contentSize.height + newGeo.contentInsets.top + newGeo.contentInsets.bottom
+        if contentHeight == 0 || abs(target - contentHeight) > 1 {
+          contentHeight = target
         }
       })
       .presentationDetents(
