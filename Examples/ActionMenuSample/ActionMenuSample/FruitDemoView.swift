@@ -47,7 +47,7 @@ struct FruitDemoView: View {
           Button("Uppercase", systemImage: "characters.uppercase") { store.uppercaseSelected() }
           Button("Lowercase", systemImage: "characters.lowercase") { store.lowercaseSelected() }
           Button("Say hello", systemImage: "quote.bubble.fill") { isSecondarySheetPresented.toggle() }
-          share("Some test")
+          Button("Share", systemImage: "square.and.arrow.up") { share("Some test") }
           Button("Duplicate", systemImage: "doc.on.doc") { store.duplicateSelected() }
         }
         Section {
