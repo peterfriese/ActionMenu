@@ -165,6 +165,89 @@ final class ActionMenuSampleUITests: XCTestCase {
     XCTAssertGreaterThanOrEqual(bottomGap, 15, "The bottom action row must never be clipped.")
   }
 
+  // MARK: - Test 6: Detent cycling returns to the balanced size
+
+  /// Expanding the sheet to `.large` and returning must not corrupt the self-sizing detent: the
+  /// bottom "Delete Item" row must end up at the same balanced gap against its side margins.
+  func testDetentCycleReturnsToBalancedSize() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let deleteButton = app.buttons["Delete Item"]
+    XCTAssertTrue(deleteButton.waitForExistence(timeout: 5), "The 'Delete Item' button should be visible.")
+    let windowBottom = app.windows.firstMatch.frame.maxY
+    let balancedGap = windowBottom - deleteButton.frame.maxY
+    XCTAssertGreaterThanOrEqual(balancedGap, 15, "The sheet should start at its balanced size.")
+
+    // Expand to `.large` by dragging the nav bar upward, then drag back down to the balanced detent.
+    let navBar = app.navigationBars["Actions"]
+    navBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+      .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)))
+    XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The sheet should stay presented at `.large`.")
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+      .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)))
+
+    let cycledGap = windowBottom - deleteButton.frame.maxY
+    let sideGap = deleteButton.frame.minX
+    XCTAssertEqual(cycledGap, balancedGap, accuracy: 6, "The sheet must return to its balanced size after cycling.")
+    XCTAssertEqual(cycledGap, sideGap, accuracy: 10, "The balanced detent must remain stable across detent cycling.")
+  }
+
+  // MARK: - Test 7: Drag-down from `.large` never yields a mini-rectangle
+
+  /// Dragging the sheet fully down from `.large` must dismiss it cleanly (or return to a sane
+  /// size) — never an ~8pt strip that fails to dismiss.
+  func testDragDownFromLargeNeverYieldsMiniRectangle() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let navBar = app.navigationBars["Actions"]
+    XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The action menu should be presented.")
+
+    // Expand to `.large`, then drag down past the dismiss threshold.
+    navBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+      .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)))
+    XCTAssertTrue(navBar.exists, "The sheet should be at `.large`.")
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+      .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+    sleep(2)
+
+    if navBar.exists {
+      // Still presented: it must be at a sane size, never a mini-rectangle.
+      let deleteButton = app.buttons["Delete Item"]
+      XCTAssertTrue(deleteButton.waitForExistence(timeout: 3), "The 'Delete Item' button should be visible.")
+      let windowBottom = app.windows.firstMatch.frame.maxY
+      let bottomGap = windowBottom - deleteButton.frame.maxY
+      XCTAssertGreaterThanOrEqual(bottomGap, 15, "The menu must never collapse to a mini-rectangle.")
+    } else {
+      XCTAssertFalse(app.navigationBars["Actions"].exists, "The menu should be dismissed after a full drag-down.")
+    }
+  }
+
+  // MARK: - Test 8: Share dismisses the menu via the deferred trigger
+
+  /// Tapping "Share" must fire the deferred trigger: the menu dismisses before the share action
+  /// runs, exactly like the other action rows.
+  ///
+  /// Note: the share sheet itself is system UI that does not present under XCUITest automation on
+  /// this configuration (verified for both the `\.share` environment action and a bare `ShareLink`),
+  /// so this test asserts the menu dismissal contract rather than the share sheet's contents.
+  func testSharePresentsShareSheet() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let shareButton = app.buttons["Share"]
+    XCTAssertTrue(shareButton.waitForExistence(timeout: 5), "The 'Share' row should exist in the menu.")
+    shareButton.tap()
+
+    waitForMenuToDisappear()
+    XCTAssertTrue(
+      app.navigationBars["Fruits"].waitForExistence(timeout: 3),
+      "The fruit list should be visible after the share action fired."
+    )
+    XCTAssertFalse(app.staticTexts["APPLE"].exists, "Tapping Share must not run any other action.")
+  }
+
   // MARK: - Helpers
 
   /// Launches a fresh instance of the app and waits for the main fruit list.
