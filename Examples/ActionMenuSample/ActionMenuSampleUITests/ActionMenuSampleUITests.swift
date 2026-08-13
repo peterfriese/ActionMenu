@@ -218,9 +218,9 @@ final class ActionMenuSampleUITests: XCTestCase {
 
     // A genuine scroll attempt on the list content, then return the list to the top.
     app.buttons["Duplicate"].swipeUp()
-    sleep(1)
+    waitForScrollToSettle()
     app.buttons["Duplicate"].swipeDown()
-    sleep(1)
+    waitForScrollToSettle()
 
     XCTAssertTrue(navBar.exists, "The sheet should still be presented after the list scroll attempt.")
     let afterFrame = navBar.frame
@@ -369,6 +369,20 @@ final class ActionMenuSampleUITests: XCTestCase {
       .completed,
       "The action menu sheet should disappear."
     )
+  }
+
+  /// Waits until the menu rows stop moving (the scroll animation has settled) instead of using a
+  /// fixed sleep, so the wait adapts to simulator/device speed.
+  private func waitForScrollToSettle(timeout: TimeInterval = 3) {
+    var lastFrame: CGRect = .zero
+    let settled = NSPredicate { _, _ in
+      let current = self.app.buttons["Uppercase"].frame
+      let isStable = lastFrame != .zero && current == lastFrame
+      lastFrame = current
+      return isStable
+    }
+    let expectation = XCTNSPredicateExpectation(predicate: settled, object: nil)
+    _ = XCTWaiter().wait(for: [expectation], timeout: timeout)
   }
 
   /// Blocks until a static text whose label equals `text` exists.
