@@ -94,6 +94,10 @@ final class ActionMenuSampleUITests: XCTestCase {
 
   /// "Say hello" must present the "Hello, World!" sheet only after the action menu has fully
   /// dismissed, proving the deferred trigger.
+  ///
+  /// The ordering is proven with a single combined expectation that resolves only when the
+  /// secondary sheet exists AND the menu's nav bar does not — a post-hoc check would pass even if
+  /// the sheet were presented over the still-open menu.
   func testSecondarySheetPresentsAfterMenuDismisses() throws {
     launch()
 
@@ -101,12 +105,16 @@ final class ActionMenuSampleUITests: XCTestCase {
     app.buttons["Say hello"].tap()
 
     let helloText = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Hello, World!")).firstMatch
-    XCTAssertTrue(helloText.waitForExistence(timeout: 5), "The 'Hello, World!' sheet should appear.")
 
-    waitForMenuToDisappear()
-    XCTAssertFalse(
-      app.navigationBars["Actions"].exists,
-      "The action menu must be dismissed before the secondary sheet is presented."
+    // Resolve only when the sheet is up and the menu is gone at the same observed moment.
+    let orderingPredicate = NSPredicate { _, _ in
+      helloText.exists && !self.app.navigationBars["Actions"].exists
+    }
+    let expectation = XCTNSPredicateExpectation(predicate: orderingPredicate, object: nil)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [expectation], timeout: 5),
+      .completed,
+      "The 'Hello, World!' sheet must appear only after the action menu has dismissed."
     )
   }
 
