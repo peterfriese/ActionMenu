@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import SwiftUI   // re-exports Observation
+import Observation
 
 @MainActor
 @Observable
