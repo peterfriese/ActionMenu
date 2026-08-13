@@ -44,15 +44,16 @@ private struct RowBoundsKey: PreferenceKey {
 /// A view modifier that sizes a presentation sheet to the height of its scrollable content.
 ///
 /// It measures the menu rows' geometry relative to the sheet's root and applies the measured height
-/// as a single `.height` presentation detent, pinning the sheet to its content height. The rows'
-/// measured position is scroll-corrected by the List's content offset, so scrolling the menu never
-/// resizes the sheet: the rows' *unscrolled* position is what the detent tracks, keeping the sheet
-/// stable under both detent drags and List scrolls. The detent places the bottom menu row at the
-/// same distance from the sheet's bottom edge as its own side margins:
-/// `target = rowsBottomInSheet + sideMargin - sheetTopChrome`. A `.medium` detent is used as a
-/// fallback until the first measurement completes, preventing an invisible, zero-height sheet from
-/// flashing. There is no `.large` detent, so the drag indicator can only dismiss the sheet, not
-/// expand it; if the content is taller than the pinned height, the List scrolls within the sheet.
+/// as a single `.height` presentation detent, pinning the sheet to its content height. The detent
+/// is only computed while the List is at its rest (top) position: scrolling or bouncing the menu
+/// never resizes the sheet, and the row measurement is only trustworthy at rest. This also
+/// self-heals any previously corrupted detent at the next rest-state geometry event. The detent
+/// places the bottom menu row at the same distance from the sheet's bottom edge as its own side
+/// margins: `target = rowsBottomInSheet + sideMargin - sheetTopChrome`. A `.medium` detent is used
+/// as a fallback until the first measurement completes, preventing an invisible, zero-height sheet
+/// from flashing. There is no `.large` detent, so the drag indicator can only dismiss the sheet,
+/// not expand it; if the content is taller than the pinned height, the List scrolls within the
+/// sheet.
 struct SelfSizingSheetModifier: ViewModifier {
   /// The currently applied detent height.
   @State private var contentHeight: CGFloat = 0
@@ -73,13 +74,12 @@ struct SelfSizingSheetModifier: ViewModifier {
         // collapse the sheet below the `.medium` fallback.
         guard newGeo.contentSize.height > 0 else { return }
         guard rowsBottom > 0, sideMargin > 0, sheetTop > 0 else { return }
-        // Scroll-correct the measurement: `rowsBottom - sheetTop` is the rows' on-screen position,
-        // which drops when the List scrolls. Adding back the scroll offset relative to rest
-        // (`contentOffset.y + contentInsets.top`, since a top-aligned scroll view rests at
-        // `-contentInsets.top`) recovers the rows' unscrolled position, so scrolling the menu's
-        // List never resizes the pinned sheet. The on-screen detent changes shift the global
-        // measurements together and cancel out.
-        let rowsBottomInSheet = (rowsBottom - sheetTop) + newGeo.contentOffset.y + newGeo.contentInsets.top
+        // Only size the sheet when the List is at its rest (top) position — a top-aligned scroll
+        // view rests at `contentOffset.y == -contentInsets.top`. Scrolling or bouncing the menu
+        // must never resize the sheet, and the row measurement is only trustworthy at rest (the
+        // row preference and the scroll geometry update asynchronously and can briefly disagree).
+        guard abs(newGeo.contentOffset.y + newGeo.contentInsets.top) < 2 else { return }
+        let rowsBottomInSheet = rowsBottom - sheetTop
         let target = rowsBottomInSheet + sideMargin - sheetTopChrome
         if contentHeight == 0 || abs(target - contentHeight) > 1 {
           contentHeight = target
