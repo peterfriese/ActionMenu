@@ -18,32 +18,17 @@
 
 import SwiftUI
 
-@MainActor @preconcurrency
-public struct ShareAction {
-  private func presentActivityViewController(for items: [Any]) {
-    let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+struct ShareAction: Sendable {
+  nonisolated init() {}
 
-    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-       let rootViewController = windowScene.windows.first?.rootViewController {
-      var topController = rootViewController
-      while let presentedViewController = topController.presentedViewController {
-        topController = presentedViewController
-      }
-      topController.present(activityVC, animated: true, completion: nil)
+  @MainActor
+  func callAsFunction(_ item: String) -> some View {
+    ShareLink(item: item) {
+      Label("Share", systemImage: "square.and.arrow.up")
     }
-  }
-
-  public func callAsFunction(_ item: URL, subject: Text? = nil, message: Text? = nil) {
-    let items = [item]
-    presentActivityViewController(for: items)
-  }
-
-  public func callAsFunction(_ item: String, subject: Text? = nil, message: Text? = nil) {
-    let items = [item]
-    presentActivityViewController(for: items)
   }
 }
 
 extension EnvironmentValues {
-  @Entry public var share: ShareAction = .init()
+  @Entry var share: ShareAction = ShareAction()
 }
