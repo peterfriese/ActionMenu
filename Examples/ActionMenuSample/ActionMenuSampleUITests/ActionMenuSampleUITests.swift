@@ -138,6 +138,31 @@ final class ActionMenuSampleUITests: XCTestCase {
     XCTAssertFalse(app.staticTexts["APPLE"].exists, "Closing the menu must not fire any action.")
   }
 
+  // MARK: - Test 5: Bottom action row is fully visible
+
+  /// The sheet's self-sizing detent must fit both the menu's content and its chrome (nav bar +
+  /// safe areas), so the bottom "Delete Item" row is never clipped by the home indicator.
+  ///
+  /// Margin rationale (measured on iPhone 17, iOS 27): with the pre-fix detent the button's bottom
+  /// sat ~7pt BELOW the window bottom (gap = −7.4, clipped); with the chrome-corrected detent it
+  /// sits ~92pt above it. The 20pt margin discriminates the two while staying below the ~34pt
+  /// home-indicator inset.
+  func testBottomRowIsFullyVisible() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let deleteButton = app.buttons["Delete Item"]
+    XCTAssertTrue(deleteButton.waitForExistence(timeout: 5), "The 'Delete Item' button should be visible.")
+
+    let buttonBottom = deleteButton.frame.maxY
+    let windowBottom = app.windows.firstMatch.frame.maxY
+    XCTAssertLessThanOrEqual(
+      buttonBottom,
+      windowBottom - 20,
+      "The bottom action row must be fully visible above the home indicator, not clipped."
+    )
+  }
+
   // MARK: - Helpers
 
   /// Launches a fresh instance of the app and waits for the main fruit list.
