@@ -161,7 +161,7 @@ extension View {
   ///   - isPresented: A binding to a Boolean value that determines whether to present the action menu.
   ///   - content: A `@ContentBuilder` closure that creates the content of the action menu. This is typically a list of `Button`s.
   public func actionMenu(
-    title: String, isPresented: Binding<Bool>,
+    title: String = "Options", isPresented: Binding<Bool>,
     @ContentBuilder content: () -> some View
   ) -> some View {
     modifier(
