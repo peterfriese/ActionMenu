@@ -17,29 +17,67 @@
 // limitations under the License.
 
 import SwiftUI
+import UIKit
+
+/// Aggregated bounds of the menu's rows in global coordinates.
+///
+/// The rows are measured via a `GeometryReader` in each row's background so the detent can balance
+/// the sheet's bottom gap against the rows' own side margins, regardless of device or list style.
+private struct RowBounds: Equatable {
+  var minX: CGFloat = .infinity
+  var maxY: CGFloat = 0
+}
+
+/// Collects the global bounds of every menu row into a single `RowBounds` value.
+private struct RowBoundsKey: PreferenceKey {
+  static let defaultValue = RowBounds()
+  static func reduce(value: inout RowBounds, nextValue: () -> RowBounds) {
+    value.minX = min(value.minX, nextValue().minX)
+    value.maxY = max(value.maxY, nextValue().maxY)
+  }
+}
 
 /// A view modifier that sizes a presentation sheet to the height of its scrollable content.
 ///
 /// It measures the scroll content size of the modified view (typically a `List`) and applies
 /// the measured height as a `.height` presentation detent. The scroll content size is measured
 /// instead of the view's own frame to avoid a feedback loop between the detent height and the
-/// measured size. The scroll view's content insets (nav bar, safe areas) are added at runtime
-/// so the sheet fits both the content and its chrome without a magic constant. A `.medium`
-/// detent is used as a fallback until the first measurement completes, preventing an invisible,
-/// zero-height sheet from flashing.
+/// measured size. The detent is corrected so the bottom menu row ends at roughly the same distance
+/// from the sheet's bottom edge as its own side margins: the row's bottom edge and leading margin
+/// are measured at runtime (via `RowBoundsKey`) and the detent is moved to the fixed point where
+/// `rowsBottom == windowHeight - sideMargin`. A `.medium` detent is used as a fallback until the
+/// first measurement completes, preventing an invisible, zero-height sheet from flashing.
 struct SelfSizingSheetModifier: ViewModifier {
+  /// The currently applied detent height.
   @State private var contentHeight: CGFloat = 0
 
+  /// The bottom edge of the last menu row, in global coordinates.
+  @Binding var rowsBottom: CGFloat
+
+  /// The leading edge of the menu rows, in global coordinates (their side margin).
+  @Binding var sideMargin: CGFloat
+
   func body(content: Content) -> some View {
-    content
-      .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }, action: { oldGeo, newGeo in
+    // The window height cannot be obtained from inside a sheet through SwiftUI; `UIScreen` is the
+    // runtime-measured equivalent of the presentation's window bounds.
+    let windowHeight = UIScreen.main.bounds.height
+    return content
+      .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }, action: { _, newGeo in
         // Skip until the List has laid out its content: the zero-sized first callback must not
         // collapse the sheet below the `.medium` fallback.
         guard newGeo.contentSize.height > 0 else { return }
-        // The detent must cover the scroll content PLUS the scroll view's content insets (nav bar
-        // and top safe area, home-indicator bottom safe area), all measured at runtime. The content
-        // size is independent of the viewport, so this stays stable once the correct detent applies.
-        let target = newGeo.contentSize.height + newGeo.contentInsets.top + newGeo.contentInsets.bottom
+        guard rowsBottom > 0, sideMargin > 0 else {
+          // Rows not measured yet (preference timing): fall back to a content-based estimate.
+          if contentHeight == 0 {
+            contentHeight = newGeo.contentSize.height + newGeo.contentInsets.top + newGeo.contentInsets.bottom
+          }
+          return
+        }
+        // Fixed point: the sheet grows/shrinks until the last row's bottom edge sits `sideMargin`
+        // above the window bottom, i.e. `rowsBottom == windowHeight - sideMargin`. At the `.medium`
+        // fallback the applied detent is `windowHeight / 2`, which anchors the first iteration.
+        let currentDetent = contentHeight == 0 ? windowHeight / 2 : contentHeight
+        let target = currentDetent + rowsBottom + sideMargin - windowHeight
         if contentHeight == 0 || abs(target - contentHeight) > 1 {
           contentHeight = target
         }
@@ -55,6 +93,8 @@ struct SelfSizingSheetModifier: ViewModifier {
 struct ActionMenu<Content: View>: View {
   @Environment(\.dismiss) private var dismiss
   @State private var pendingAction: (() -> Void)? = nil
+  @State private var rowsBottom: CGFloat = 0
+  @State private var sideMargin: CGFloat = 0
 
   let title: String
   let content: Content
@@ -71,8 +111,19 @@ struct ActionMenu<Content: View>: View {
     NavigationStack {
       List {
         content
+          .listRowBackground(
+            GeometryReader { proxy in
+              let frame = proxy.frame(in: .global)
+              Color.clear
+                .preference(key: RowBoundsKey.self, value: RowBounds(minX: frame.minX, maxY: frame.maxY))
+            }
+          )
       }
-      .modifier(SelfSizingSheetModifier())
+      .onPreferenceChange(RowBoundsKey.self) { bounds in
+        rowsBottom = bounds.maxY
+        sideMargin = bounds.minX
+      }
+      .modifier(SelfSizingSheetModifier(rowsBottom: $rowsBottom, sideMargin: $sideMargin))
       .labelStyle(.menu)
       .buttonStyle(ActionMenuButtonStyle(pendingAction: $pendingAction))
       .tint(.primary)
