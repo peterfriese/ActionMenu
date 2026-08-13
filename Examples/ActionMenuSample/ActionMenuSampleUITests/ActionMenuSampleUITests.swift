@@ -140,13 +140,13 @@ final class ActionMenuSampleUITests: XCTestCase {
 
   // MARK: - Test 5: Bottom action row is fully visible
 
-  /// The sheet's self-sizing detent must fit both the menu's content and its chrome (nav bar +
-  /// safe areas), so the bottom "Delete Item" row is never clipped by the home indicator.
+  /// The sheet's self-sizing detent must balance the bottom gap with the rows' side margins, so
+  /// the bottom "Delete Item" row is never clipped by the sheet's bottom edge.
   ///
-  /// Margin rationale (measured on iPhone 17, iOS 27): with the pre-fix detent the button's bottom
-  /// sat ~7pt BELOW the window bottom (gap = −7.4, clipped); with the chrome-corrected detent it
-  /// sits ~92pt above it. The 20pt margin discriminates the two while staying below the ~34pt
-  /// home-indicator inset.
+  /// Measured on iPhone 17, iOS 27: with the pre-fix detent the button's bottom gap was ~92pt
+  /// (over-sized); the balanced detent brings it to ~26pt against a ~23.4pt side margin. The
+  /// 10pt accuracy discriminates the two while tolerating device differences, and the 15pt floor
+  /// guarantees the row can never regress to a clipped state (pre-fix clipped gap was −7.4pt).
   func testBottomRowIsFullyVisible() throws {
     launch()
     presentMenu(for: "Apple")
@@ -154,13 +154,15 @@ final class ActionMenuSampleUITests: XCTestCase {
     let deleteButton = app.buttons["Delete Item"]
     XCTAssertTrue(deleteButton.waitForExistence(timeout: 5), "The 'Delete Item' button should be visible.")
 
-    let buttonBottom = deleteButton.frame.maxY
     let windowBottom = app.windows.firstMatch.frame.maxY
-    XCTAssertLessThanOrEqual(
-      buttonBottom,
-      windowBottom - 20,
-      "The bottom action row must be fully visible above the home indicator, not clipped."
+    let bottomGap = windowBottom - deleteButton.frame.maxY
+    let sideGap = deleteButton.frame.minX
+
+    XCTAssertEqual(
+      bottomGap, sideGap, accuracy: 10,
+      "The bottom gap should be balanced against the row's side margins."
     )
+    XCTAssertGreaterThanOrEqual(bottomGap, 15, "The bottom action row must never be clipped.")
   }
 
   // MARK: - Helpers
