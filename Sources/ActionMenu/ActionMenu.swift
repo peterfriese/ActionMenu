@@ -157,7 +157,7 @@ extension View {
   /// ```
   ///
   /// - Parameters:
-  ///   - title: The title to display in the navigation bar of the action menu.
+  ///   - title: The title to display in the navigation bar of the action menu. Defaults to `"Options"`.
   ///   - isPresented: A binding to a Boolean value that determines whether to present the action menu.
   ///   - content: A `@ContentBuilder` closure that creates the content of the action menu. This is typically a list of `Button`s.
   public func actionMenu(
