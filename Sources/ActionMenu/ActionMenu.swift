@@ -32,8 +32,11 @@ struct SelfSizingSheetModifier: ViewModifier {
     content
       .onScrollGeometryChange(for: CGSize.self, of: { proxy in
         proxy.contentSize
-      }, action: { _, newSize in
-        contentHeight = newSize.height
+      }, action: { oldSize, newSize in
+        // Not-yet-measured OR meaningful change → update; otherwise skip to avoid re-applying the detent on every scroll tick.
+        if contentHeight == 0 || abs(newSize.height - oldSize.height) > 1 {
+          contentHeight = newSize.height
+        }
       })
       .presentationDetents(
         contentHeight == 0
