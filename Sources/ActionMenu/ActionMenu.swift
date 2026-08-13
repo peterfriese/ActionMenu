@@ -17,7 +17,11 @@
 // limitations under the License.
 
 import SwiftUI
-import UIKit
+
+/// The sheet's top chrome: the grabber/rounded-top area that the presentation renders above the
+/// `.height` detent value. Measured empirically (~21pt on iOS 26+ sheets); a fixed presentation
+/// constant rather than a device or list style, so it is shared across all menus.
+private let sheetTopChrome: CGFloat = 21
 
 /// Aggregated bounds of the menu's rows in global coordinates.
 ///
@@ -39,14 +43,14 @@ private struct RowBoundsKey: PreferenceKey {
 
 /// A view modifier that sizes a presentation sheet to the height of its scrollable content.
 ///
-/// It measures the scroll content size of the modified view (typically a `List`) and applies
-/// the measured height as a `.height` presentation detent. The scroll content size is measured
-/// instead of the view's own frame to avoid a feedback loop between the detent height and the
-/// measured size. The detent is corrected so the bottom menu row ends at roughly the same distance
-/// from the sheet's bottom edge as its own side margins: the row's bottom edge and leading margin
-/// are measured at runtime (via `RowBoundsKey`) and the detent is moved to the fixed point where
-/// `rowsBottom == windowHeight - sideMargin`. A `.medium` detent is used as a fallback until the
-/// first measurement completes, preventing an invisible, zero-height sheet from flashing.
+/// It measures the menu rows' geometry relative to the sheet's root and applies the measured height
+/// as a `.height` presentation detent. Because the rows' position relative to the sheet root is
+/// invariant under detent changes, the detent stays stable when the user drags the sheet or cycles
+/// between detents. The detent places the bottom menu row at the same distance from the sheet's
+/// bottom edge as its own side margins:
+/// `target = rowsBottomInSheet + sideMargin - sheetTopChrome`. A `.medium` detent is used as a
+/// fallback until the first measurement completes, preventing an invisible, zero-height sheet from
+/// flashing.
 struct SelfSizingSheetModifier: ViewModifier {
   /// The currently applied detent height.
   @State private var contentHeight: CGFloat = 0
@@ -57,27 +61,21 @@ struct SelfSizingSheetModifier: ViewModifier {
   /// The leading edge of the menu rows, in global coordinates (their side margin).
   @Binding var sideMargin: CGFloat
 
+  /// The top edge of the sheet's root view, in global coordinates.
+  @Binding var sheetTop: CGFloat
+
   func body(content: Content) -> some View {
-    // The window height cannot be obtained from inside a sheet through SwiftUI; `UIScreen` is the
-    // runtime-measured equivalent of the presentation's window bounds.
-    let windowHeight = UIScreen.main.bounds.height
-    return content
+    content
       .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }, action: { _, newGeo in
         // Skip until the List has laid out its content: the zero-sized first callback must not
         // collapse the sheet below the `.medium` fallback.
         guard newGeo.contentSize.height > 0 else { return }
-        guard rowsBottom > 0, sideMargin > 0 else {
-          // Rows not measured yet (preference timing): fall back to a content-based estimate.
-          if contentHeight == 0 {
-            contentHeight = newGeo.contentSize.height + newGeo.contentInsets.top + newGeo.contentInsets.bottom
-          }
-          return
-        }
-        // Fixed point: the sheet grows/shrinks until the last row's bottom edge sits `sideMargin`
-        // above the window bottom, i.e. `rowsBottom == windowHeight - sideMargin`. At the `.medium`
-        // fallback the applied detent is `windowHeight / 2`, which anchors the first iteration.
-        let currentDetent = contentHeight == 0 ? windowHeight / 2 : contentHeight
-        let target = currentDetent + rowsBottom + sideMargin - windowHeight
+        guard rowsBottom > 0, sideMargin > 0, sheetTop > 0 else { return }
+        // Detent-independent: the rows' position relative to the sheet root does not change when
+        // the on-screen detent changes, so the target is stable across handle drags and detent
+        // cycling (the global measurements shift together and cancel out).
+        let rowsBottomInSheet = rowsBottom - sheetTop
+        let target = rowsBottomInSheet + sideMargin - sheetTopChrome
         if contentHeight == 0 || abs(target - contentHeight) > 1 {
           contentHeight = target
         }
@@ -95,6 +93,7 @@ struct ActionMenu<Content: View>: View {
   @State private var pendingAction: (() -> Void)? = nil
   @State private var rowsBottom: CGFloat = 0
   @State private var sideMargin: CGFloat = 0
+  @State private var sheetTop: CGFloat = 0
 
   let title: String
   let content: Content
@@ -123,7 +122,9 @@ struct ActionMenu<Content: View>: View {
         rowsBottom = bounds.maxY
         sideMargin = bounds.minX
       }
-      .modifier(SelfSizingSheetModifier(rowsBottom: $rowsBottom, sideMargin: $sideMargin))
+      .modifier(
+        SelfSizingSheetModifier(rowsBottom: $rowsBottom, sideMargin: $sideMargin, sheetTop: $sheetTop)
+      )
       .labelStyle(.menu)
       .buttonStyle(ActionMenuButtonStyle(pendingAction: $pendingAction))
       .tint(.primary)
@@ -143,6 +144,9 @@ struct ActionMenu<Content: View>: View {
           }
         }
       }
+    }
+    .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).minY }) { top in
+      sheetTop = top
     }
     .onDisappear {
       pendingAction?()
