@@ -162,7 +162,7 @@ extension View {
   ///   - content: A `@ContentBuilder` closure that creates the content of the action menu. This is typically a list of `Button`s.
   public func actionMenu(
     title: String, isPresented: Binding<Bool>,
-    @ContentBuilder content: @escaping () -> some View
+    @ContentBuilder content: () -> some View
   ) -> some View {
     modifier(
       ActionMenuModifier(
