@@ -17,79 +17,10 @@
 // limitations under the License.
 
 import SwiftUI
-import ActionMenu
 
 struct ContentView: View {
-  @State private var fruits = ["Apple", "Banana", "Orange", "Mango", "Pear", "Grape", "Pineapple", "Strawberry"]
-  @State private var isMoreActionTapped = false
-  @State private var selectedFruit: String? = nil
-  @State private var isSecondarySheetPresented = false
-
-  @Environment(\.share) private var share
-
   var body: some View {
-    NavigationStack {
-      List(fruits, id: \.self) { fruit in
-        Text(fruit)
-          .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button("Delete", systemImage: "trash", role: .destructive) {
-              if let index = fruits.firstIndex(of: fruit) {
-                fruits.remove(at: index)
-              }
-            }
-
-            Button("More", systemImage: "ellipsis.circle") {
-              selectedFruit = fruit
-              isMoreActionTapped.toggle()
-            }
-            .tint(.gray)
-          }
-      }
-      .navigationTitle("Fruits")
-      .actionMenu(title: "Actions", isPresented: $isMoreActionTapped) {
-        Section("Text Options") {
-          Button("Uppercase", systemImage: "characters.uppercase") {
-            if let selectedFruit = selectedFruit,
-               let index = fruits.firstIndex(of: selectedFruit) {
-              fruits[index] = selectedFruit.uppercased()
-            }
-          }
-
-          Button("Lowercase", systemImage: "characters.lowercase") {
-            if let selectedFruit = selectedFruit,
-               let index = fruits.firstIndex(of: selectedFruit) {
-              fruits[index] = selectedFruit.lowercased()
-            }
-          }
-
-          Button("Say hello", systemImage: "quote.bubble.fill") {
-            isSecondarySheetPresented.toggle()
-          }
-
-          share("Some test")
-
-          Button("Duplicate", systemImage: "doc.on.doc") {
-            if let selectedFruit, let index = fruits.firstIndex(of: selectedFruit) {
-              fruits.insert(selectedFruit, at: index + 1)
-            }
-          }
-        }
-
-        Section {
-          Button("Delete Item", systemImage: "trash", role: .destructive) {
-            if let selectedFruit = selectedFruit,
-               let index = fruits.firstIndex(of: selectedFruit) {
-              _ = withAnimation {
-                fruits.remove(at: index)
-              }
-            }
-          }
-        }
-      }
-      .sheet(isPresented: $isSecondarySheetPresented) {
-        Text("Hello, World! Here is a \(selectedFruit ?? "no fruit")")
-      }
-    }
+    FruitDemoView()
   }
 }
 
