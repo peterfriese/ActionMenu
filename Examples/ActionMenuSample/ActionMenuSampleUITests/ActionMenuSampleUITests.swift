@@ -23,6 +23,7 @@ import XCTest
 /// These tests exercise the deferred-trigger design of the action menu: tapping an action button
 /// records it as a pending action and dismisses the sheet; the action fires exactly once, only
 /// after the sheet is gone.
+@MainActor
 final class ActionMenuSampleUITests: XCTestCase {
 
   // A fresh instance is created for every test method, so `app` is always a clean application.
