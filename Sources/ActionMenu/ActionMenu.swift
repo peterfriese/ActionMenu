@@ -20,6 +20,7 @@ import SwiftUI
 
 struct ActionMenu<Content: View>: View {
   @Environment(\.dismiss) private var dismiss
+  @State private var pendingAction: (() -> Void)? = nil
 
   let title: String
   @Binding var contentSize: CGSize
@@ -46,7 +47,7 @@ struct ActionMenu<Content: View>: View {
         contentSize = newSize
       })
       .labelStyle(.menu)
-      .buttonStyle(.action)
+      .buttonStyle(ActionMenuButtonStyle(pendingAction: $pendingAction))
       .tint(.primary)
       .navigationTitle(title)
       .navigationBarTitleDisplayMode(.inline)
@@ -56,6 +57,7 @@ struct ActionMenu<Content: View>: View {
             Button("", systemImage: "xmark") {
               dismiss()
             }
+            .accessibilityLabel("Close")
           } else {
             Button("Done") {
               dismiss()
@@ -63,6 +65,13 @@ struct ActionMenu<Content: View>: View {
           }
         }
       }
+    }
+    .onDisappear {
+      pendingAction?()
+      pendingAction = nil
+    }
+    .onAppear {
+      pendingAction = nil
     }
   }
 }
@@ -73,8 +82,6 @@ struct ActionMenuModifier<MenuContent: View>: ViewModifier {
   let menuContent: MenuContent
 
   @State private var menuContentSize: CGSize = .zero
-
-  @Environment(\.dismiss) private var dismiss
 
   init(title: String, isPresented: Binding<Bool>, @ContentBuilder menuContent: () -> MenuContent) {
     self.title = title
