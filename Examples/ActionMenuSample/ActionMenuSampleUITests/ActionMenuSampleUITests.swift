@@ -207,14 +207,24 @@ final class ActionMenuSampleUITests: XCTestCase {
     XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The action menu should be presented.")
     let beforeFrame = navBar.frame
 
-    // A genuine scroll attempt on the list content.
+    // A genuine scroll attempt on the list content, then return the list to the top.
     app.buttons["Duplicate"].swipeUp()
+    sleep(1)
+    app.buttons["Duplicate"].swipeDown()
     sleep(1)
 
     XCTAssertTrue(navBar.exists, "The sheet should still be presented after the list scroll attempt.")
     let afterFrame = navBar.frame
     XCTAssertEqual(afterFrame.minY, beforeFrame.minY, accuracy: 2, "The pinned sheet must not shrink when its list scrolls.")
     XCTAssertEqual(afterFrame.height, beforeFrame.height, accuracy: 2, "The nav bar should be unchanged.")
+
+    // No leftover extra padding: the bottom row is back to its balanced gap against the side margins.
+    let deleteButton = app.buttons["Delete Item"]
+    XCTAssertTrue(deleteButton.exists, "The 'Delete Item' button should still be visible.")
+    let windowBottom = app.windows.firstMatch.frame.maxY
+    let bottomGap = windowBottom - deleteButton.frame.maxY
+    let sideGap = deleteButton.frame.minX
+    XCTAssertEqual(bottomGap, sideGap, accuracy: 10, "The sheet must not pump extra padding after a scroll bounce.")
   }
 
   // MARK: - Test 8: Share dismisses the menu via the deferred trigger
