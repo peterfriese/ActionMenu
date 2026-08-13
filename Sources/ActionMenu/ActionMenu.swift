@@ -44,13 +44,14 @@ private struct RowBoundsKey: PreferenceKey {
 /// A view modifier that sizes a presentation sheet to the height of its scrollable content.
 ///
 /// It measures the menu rows' geometry relative to the sheet's root and applies the measured height
-/// as a `.height` presentation detent. Because the rows' position relative to the sheet root is
-/// invariant under detent changes, the detent stays stable when the user drags the sheet or cycles
-/// between detents. The detent places the bottom menu row at the same distance from the sheet's
-/// bottom edge as its own side margins:
+/// as a single `.height` presentation detent, pinning the sheet to its content height. Because the
+/// rows' position relative to the sheet root is invariant under detent changes, the detent stays
+/// stable while the sheet is presented. The detent places the bottom menu row at the same distance
+/// from the sheet's bottom edge as its own side margins:
 /// `target = rowsBottomInSheet + sideMargin - sheetTopChrome`. A `.medium` detent is used as a
 /// fallback until the first measurement completes, preventing an invisible, zero-height sheet from
-/// flashing.
+/// flashing. There is no `.large` detent, so the drag indicator can only dismiss the sheet, not
+/// expand it; if the content is taller than the pinned height, the List scrolls within the sheet.
 struct SelfSizingSheetModifier: ViewModifier {
   /// The currently applied detent height.
   @State private var contentHeight: CGFloat = 0
@@ -82,8 +83,8 @@ struct SelfSizingSheetModifier: ViewModifier {
       })
       .presentationDetents(
         contentHeight == 0
-        ? [.medium, .large]
-        : [.height(contentHeight), .large]
+        ? [.medium]
+        : [.height(contentHeight)]
       )
   }
 }
