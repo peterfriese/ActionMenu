@@ -17,15 +17,34 @@
 // limitations under the License.
 
 import SwiftUI
+import UIKit
 
+/// A SwiftUI wrapper that presents the system share sheet for the given items.
+///
+/// UIKit is required here: `ShareLink` is a view that only presents when tapped, so it cannot be
+/// triggered from a button *action*. This is the project's documented UIKit exception (AGENTS.md) —
+/// programmatic share presentation is impossible in pure SwiftUI.
+struct ShareSheet: UIViewControllerRepresentable {
+  let activityItems: [Any]
+
+  func makeUIViewController(context: Context) -> UIActivityViewController {
+    UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+  }
+
+  func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+/// The environment share action.
+///
+/// Calling it returns a `ShareSheet` view (not a presentation), so it must be placed in a
+/// presentation — e.g. the content of a `.sheet` driven by a deferred flag — rather than called
+/// from a button action, which would build and discard the view.
 struct ShareAction: Sendable {
   nonisolated init() {}
 
   @MainActor
   func callAsFunction(_ item: String) -> some View {
-    ShareLink(item: item) {
-      Label("Share", systemImage: "square.and.arrow.up")
-    }
+    ShareSheet(activityItems: [item])
   }
 }
 

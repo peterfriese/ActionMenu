@@ -23,6 +23,7 @@ struct FruitDemoView: View {
   @State private var store = FruitStore()
   @State private var isMoreActionTapped = false
   @State private var isSecondarySheetPresented = false
+  @State private var isSharePresented = false
 
   @Environment(\.share) private var share
 
@@ -47,7 +48,7 @@ struct FruitDemoView: View {
           Button("Uppercase", systemImage: "characters.uppercase") { store.uppercaseSelected() }
           Button("Lowercase", systemImage: "characters.lowercase") { store.lowercaseSelected() }
           Button("Say hello", systemImage: "quote.bubble.fill") { isSecondarySheetPresented.toggle() }
-          Button("Share", systemImage: "square.and.arrow.up") { share("Some test") }
+          Button("Share", systemImage: "square.and.arrow.up") { isSharePresented = true }
           Button("Duplicate", systemImage: "doc.on.doc") { store.duplicateSelected() }
         }
         Section {
@@ -59,6 +60,9 @@ struct FruitDemoView: View {
       .sheet(isPresented: $isSecondarySheetPresented) {
         Text("Hello, World! Here is a \(store.selectedFruit ?? "no fruit")")
       }
+    }
+    .sheet(isPresented: $isSharePresented) {
+      share("Some test")
     }
   }
 }
