@@ -226,12 +226,12 @@ final class ActionMenuSampleUITests: XCTestCase {
 
   // MARK: - Test 8: Share dismisses the menu via the deferred trigger
 
-  /// Tapping "Share" must fire the deferred trigger: the menu dismisses before the share action
-  /// runs, exactly like the other action rows.
+  /// Tapping "Share" must fire the deferred trigger: the menu dismisses, then the root presents the
+  /// share sheet (a UIKit `UIActivityViewController`, the project's documented UIKit exception for
+  /// programmatic share presentation).
   ///
-  /// Note: the share sheet itself is system UI that does not present under XCUITest automation on
-  /// this configuration (verified for both the `\.share` environment action and a bare `ShareLink`),
-  /// so this test asserts the menu dismissal contract rather than the share sheet's contents.
+  /// The share sheet's "Close" button is the automation anchor — the activity items themselves are
+  /// not exposed as queryable buttons in this configuration.
   func testSharePresentsShareSheet() throws {
     launch()
     presentMenu(for: "Apple")
@@ -241,11 +241,20 @@ final class ActionMenuSampleUITests: XCTestCase {
     shareButton.tap()
 
     waitForMenuToDisappear()
+
+    let closeButton = app.buttons["Close"]
+    XCTAssertTrue(closeButton.waitForExistence(timeout: 5), "The share sheet should appear after the menu dismisses.")
+    XCTAssertFalse(app.staticTexts["APPLE"].exists, "Tapping Share must not run any other action.")
+
+    // Dismiss the share sheet cleanly and confirm we're back at the fruit list.
+    closeButton.tap()
+    let closeGone = NSPredicate(format: "exists == false")
+    let expectation = XCTNSPredicateExpectation(predicate: closeGone, object: closeButton)
+    _ = XCTWaiter().wait(for: [expectation], timeout: 5)
     XCTAssertTrue(
       app.navigationBars["Fruits"].waitForExistence(timeout: 3),
-      "The fruit list should be visible after the share action fired."
+      "The fruit list should be visible after dismissing the share sheet."
     )
-    XCTAssertFalse(app.staticTexts["APPLE"].exists, "Tapping Share must not run any other action.")
   }
 
   // MARK: - Helpers
