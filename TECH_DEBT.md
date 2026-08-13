@@ -11,6 +11,12 @@ Consolidated from the full-project audit (2026-08-13). Work through items step b
 > - `a0f75dc` refactor: replace UIKit share sheet with ShareLink
 > - `f559c06` refactor: extract shared fruit demo into reusable view
 > - `0071e43` fix: delete only the first matching fruit row
+> - `1b93cd3` refactor: self-size action menu sheet detent
+> - `1c5cc61` refactor: throttle detent size updates
+> - `8d20ed9` refactor: drop escaping from actionMenu content
+> - `8972b31` refactor: default actionMenu title to Options
+> - `b189e40` refactor: tighten detent throttle comparison
+> - `7c6a3a8` docs: document actionMenu title default
 
 ## 1. Docs describe a library that doesn't exist (needs a decision)
 
@@ -29,12 +35,12 @@ Consolidated from the full-project audit (2026-08-13). Work through items step b
 
 ## 3. Library design
 
-- [ ] **Replace the `contentSize: Binding<CGSize>` + magic `+34` detent with an internal self-sizing modifier** — `ActionMenu.init` leaks an implementation detail (callers must pass a binding just to size the sheet), and the sheet jumps from `.medium` to content height on first presentation. Reference pattern: Daniel Saidi's size-to-fit sheet modifier (https://danielsaidi.com/blog/2026/05/22/making-a-swiftui-sheet-automatically-size-to-fit-its-content) — a modifier owns `@State` height measured via geometry and applies `.height` as the detent. Adapt, don't copy: keep measuring the List's scroll content size (`onScrollGeometryChange`) to avoid a frame↔detent feedback loop, and keep a fallback for the unmeasured first frame. Effort: M.
+- [x] **Replace the `contentSize: Binding<CGSize>` + magic `+34` detent with an internal self-sizing modifier** — `ActionMenu.init` leaks an implementation detail (callers must pass a binding just to size the sheet), and the sheet jumps from `.medium` to content height on first presentation. Reference pattern: Daniel Saidi's size-to-fit sheet modifier (https://danielsaidi.com/blog/2026/05/22/making-a-swiftui-sheet-automatically-size-to-fit-its-content) — a modifier owns `@State` height measured via geometry and applies `.height` as the detent. Adapt, don't copy: keep measuring the List's scroll content size (`onScrollGeometryChange`) to avoid a frame↔detent feedback loop, and keep a fallback for the unmeasured first frame. Effort: M. *(Committed 2026-08-13: `1b93cd3` — new internal `SelfSizingSheetModifier` owns `@State contentHeight`, measures the List's scroll content size via `onScrollGeometryChange` (avoids frame↔detent feedback loop), falls back to `.medium` until the first measurement, and removes the `contentSize` binding and the `+34` magic number. Verified: build-for-testing + 4/4 UI tests on a dedicated simulator.)*
 - [ ] **Make `.action` / `.menu` styles public** (or fold into the styling-system decision in §1) — consumers currently can't use `.buttonStyle(.action)` / `.labelStyle(.menu)` outside the module. Effort: S.
-- [ ] **Throttle detent recomputation** — detents recompute on every scroll-geometry change. Effort: S.
-- [ ] **Remove `@escaping` from the public content closure** — it is consumed synchronously. Effort: S.
-- [ ] **Resolve the asymmetric `title` default ("Options")** between `ActionMenu.init` and the public modifier. Effort: S.
-- [ ] **Decide on the `ActionMenu` type/module name collision** — consider `ActionMenuView` if the type becomes public. Effort: S.
+- [x] **Throttle detent recomputation** — detents recompute on every scroll-geometry change. Effort: S. *(Committed 2026-08-13: `1c5cc61`, `b189e40` — detent re-applied only when the height changes meaningfully since the last applied detent.)*
+- [x] **Remove `@escaping` from the public content closure** — it is consumed synchronously. Effort: S. *(Committed 2026-08-13: `8d20ed9` — the closure is consumed synchronously in `ActionMenuModifier.init`; `@ContentBuilder` kept.)*
+- [x] **Resolve the asymmetric `title` default ("Options")** between `ActionMenu.init` and the public modifier. Effort: S. *(Committed 2026-08-13: `8972b31` — `title` defaults to `"Options"` on both `ActionMenu.init` and the public `.actionMenu(...)` modifier.)*
+- [x] **Decide on the `ActionMenu` type/module name collision** — consider `ActionMenuView` if the type becomes public. Effort: S. *(Committed 2026-08-13: decision — keep the internal `ActionMenu` type as-is (no consumer-facing collision while internal); rename to `ActionMenuView` only if the type is ever made public.)*
 
 ## 4. Sample app
 

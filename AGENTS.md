@@ -389,3 +389,13 @@ Button {
 **Destructive-action awareness:** `Styling.swift` uses a private `IsDestructiveActionKey` `EnvironmentKey` (`\.isDestructiveAction`) so `MenuLabelStyle` can color the row's icon red for destructive roles without a per-row parameter.
 
 This behavior is covered by the `ActionMenuSampleUITests` XCUITest suite.
+
+### Self-Sizing Sheet (Internal Modifier)
+
+`ActionMenu` sizes its sheet via an internal `SelfSizingSheetModifier` in `ActionMenu.swift` instead of leaking a `contentSize: Binding<CGSize>` through `ActionMenu.init`.
+
+- The modifier owns `@State private var contentHeight: CGFloat` and applies it as a `.height` presentation detent.
+- It measures the List's **scroll content size** (`onScrollGeometryChange`, `proxy.contentSize`) rather than the view frame — this avoids a frame↔detent feedback loop because the content size is independent of the viewport.
+- It falls back to `.medium` until the first measurement so the sheet never flashes at zero height, and keeps `.large` as an additional detent.
+- It throttles detent updates: re-applies only when the height changes meaningfully since the last applied detent (`contentHeight == 0 || abs(newHeight - contentHeight) > 1`).
+- Conventions: `title` defaults to `"Options"` consistently on both `ActionMenu.init` and the public `.actionMenu(...)` modifier; public content closures are non-escaping `@ContentBuilder` closures (consumed synchronously).

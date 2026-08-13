@@ -73,6 +73,8 @@ import ActionMenu
 }
 ```
 
+The `title` parameter is optional and defaults to `"Options"`.
+
 ## Example
 
 Here's a complete example showing how to use ActionMenu with a list (the content closure uses `@ContentBuilder`):
