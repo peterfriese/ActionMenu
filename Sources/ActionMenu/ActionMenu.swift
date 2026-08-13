@@ -44,10 +44,11 @@ private struct RowBoundsKey: PreferenceKey {
 /// A view modifier that sizes a presentation sheet to the height of its scrollable content.
 ///
 /// It measures the menu rows' geometry relative to the sheet's root and applies the measured height
-/// as a single `.height` presentation detent, pinning the sheet to its content height. Because the
-/// rows' position relative to the sheet root is invariant under detent changes, the detent stays
-/// stable while the sheet is presented. The detent places the bottom menu row at the same distance
-/// from the sheet's bottom edge as its own side margins:
+/// as a single `.height` presentation detent, pinning the sheet to its content height. The rows'
+/// measured position is scroll-corrected by the List's content offset, so scrolling the menu never
+/// resizes the sheet: the rows' *unscrolled* position is what the detent tracks, keeping the sheet
+/// stable under both detent drags and List scrolls. The detent places the bottom menu row at the
+/// same distance from the sheet's bottom edge as its own side margins:
 /// `target = rowsBottomInSheet + sideMargin - sheetTopChrome`. A `.medium` detent is used as a
 /// fallback until the first measurement completes, preventing an invisible, zero-height sheet from
 /// flashing. There is no `.large` detent, so the drag indicator can only dismiss the sheet, not
@@ -72,10 +73,13 @@ struct SelfSizingSheetModifier: ViewModifier {
         // collapse the sheet below the `.medium` fallback.
         guard newGeo.contentSize.height > 0 else { return }
         guard rowsBottom > 0, sideMargin > 0, sheetTop > 0 else { return }
-        // Detent-independent: the rows' position relative to the sheet root does not change when
-        // the on-screen detent changes, so the target is stable across handle drags and detent
-        // cycling (the global measurements shift together and cancel out).
-        let rowsBottomInSheet = rowsBottom - sheetTop
+        // Scroll-correct the measurement: `rowsBottom - sheetTop` is the rows' on-screen position,
+        // which drops when the List scrolls. Adding back the scroll offset relative to rest
+        // (`contentOffset.y + contentInsets.top`, since a top-aligned scroll view rests at
+        // `-contentInsets.top`) recovers the rows' unscrolled position, so scrolling the menu's
+        // List never resizes the pinned sheet. The on-screen detent changes shift the global
+        // measurements together and cancel out.
+        let rowsBottomInSheet = (rowsBottom - sheetTop) + newGeo.contentOffset.y + newGeo.contentInsets.top
         let target = rowsBottomInSheet + sideMargin - sheetTopChrome
         if contentHeight == 0 || abs(target - contentHeight) > 1 {
           contentHeight = target
