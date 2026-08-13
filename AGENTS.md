@@ -395,7 +395,8 @@ This behavior is covered by the `ActionMenuSampleUITests` XCUITest suite.
 `ActionMenu` sizes its sheet via an internal `SelfSizingSheetModifier` in `ActionMenu.swift` instead of leaking a `contentSize: Binding<CGSize>` through `ActionMenu.init`.
 
 - The modifier owns `@State private var contentHeight: CGFloat` and applies it as a `.height` presentation detent.
-- It measures the List's **scroll content size** (`onScrollGeometryChange`, `proxy.contentSize`) rather than the view frame — this avoids a frame↔detent feedback loop because the content size is independent of the viewport.
-- It falls back to `.medium` until the first measurement so the sheet never flashes at zero height, and keeps `.large` as an additional detent.
-- It throttles detent updates: re-applies only when the height changes meaningfully since the last applied detent (`contentHeight == 0 || abs(newHeight - contentHeight) > 1`).
+- It measures the List's **scroll content size** (`onScrollGeometryChange`, `ScrollGeometry.contentSize`) rather than the view frame — this avoids a frame↔detent feedback loop because the content size is independent of the viewport.
+- The detent accounts for the sheet chrome — nav bar + top/bottom safe areas — by adding the scroll view's runtime-measured **content insets** (`ScrollGeometry.contentInsets.top + contentInsets.bottom`). No magic constant: the nav-bar and home-indicator insets are read from the geometry itself.
+- It falls back to `.medium` until the first measurement so the sheet never flashes at zero height, and keeps `.large` as an additional detent. The zero-sized pre-layout callback is skipped so it cannot collapse the sheet below `.medium`.
+- It throttles detent updates: re-applies only when the target height (`contentSize + contentInsets`) changes meaningfully since the last applied detent (`contentHeight == 0 || abs(target - contentHeight) > 1`).
 - Conventions: `title` defaults to `"Options"` consistently on both `ActionMenu.init` and the public `.actionMenu(...)` modifier; public content closures are non-escaping `@ContentBuilder` closures (consumed synchronously).
