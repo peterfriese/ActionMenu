@@ -192,7 +192,32 @@ final class ActionMenuSampleUITests: XCTestCase {
     XCTAssertEqual(afterGap, sideGap, accuracy: 10, "The pinned sheet must not expand when dragged up.")
   }
 
-  // MARK: - Test 7: Share dismisses the menu via the deferred trigger
+  // MARK: - Test 7: Pinned sheet stays pinned when the list scrolls
+
+  /// Scrolling the menu's List must never resize the pinned sheet: the sheet's top (the nav bar
+  /// frame) stays put.
+  ///
+  /// Note: the button's bottom gap is the wrong assertion here — the button moves up with the
+  /// scroll, so it appears to grow a gap even though the sheet did not change size.
+  func testSheetStaysPinnedWhenListScrolls() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let navBar = app.navigationBars["Actions"]
+    XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The action menu should be presented.")
+    let beforeFrame = navBar.frame
+
+    // A genuine scroll attempt on the list content.
+    app.buttons["Duplicate"].swipeUp()
+    sleep(1)
+
+    XCTAssertTrue(navBar.exists, "The sheet should still be presented after the list scroll attempt.")
+    let afterFrame = navBar.frame
+    XCTAssertEqual(afterFrame.minY, beforeFrame.minY, accuracy: 2, "The pinned sheet must not shrink when its list scrolls.")
+    XCTAssertEqual(afterFrame.height, beforeFrame.height, accuracy: 2, "The nav bar should be unchanged.")
+  }
+
+  // MARK: - Test 8: Share dismisses the menu via the deferred trigger
 
   /// Tapping "Share" must fire the deferred trigger: the menu dismisses, then the root presents the
   /// share sheet (a UIKit `UIActivityViewController`, the project's documented UIKit exception for
