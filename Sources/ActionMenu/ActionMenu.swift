@@ -114,7 +114,7 @@ struct ActionMenu<Content: View>: View {
           .listRowBackground(
             GeometryReader { proxy in
               let frame = proxy.frame(in: .global)
-              Color.clear
+              Color(uiColor: .secondarySystemGroupedBackground)  // restore the grouped card look
                 .preference(key: RowBoundsKey.self, value: RowBounds(minX: frame.minX, maxY: frame.maxY))
             }
           )
