@@ -27,7 +27,8 @@ final class FruitStore {
   func select(_ fruit: String) { selectedFruit = fruit }
 
   func delete(_ fruit: String) {
-    fruits.removeAll { $0 == fruit }
+    guard let index = fruits.firstIndex(of: fruit) else { return }
+    fruits.remove(at: index)
   }
 
   func uppercaseSelected() {
