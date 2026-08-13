@@ -55,3 +55,8 @@ Consolidated from the full-project audit (2026-08-13). Work through items step b
 
 - [ ] **Add an SPM test target (`Tests/`) with unit tests** for the modifier/detent logic — currently no fast-feedback coverage; note `swift test` requires the §2 macOS-build fix first. Effort: M.
 - [ ] **Add a non-UI unit test for the pending-action contract** (fires exactly once, last-wins) — depends on exposing testable internals. Effort: S–M.
+
+## 6. iPad & tall-menu follow-ups (from the sheet-sizing work)
+
+- [ ] **Make the pinned sheet presentation look natural on iPad** — on iPad the `.height`-detent sheet renders as a centered floating card with symmetric margins (bottom ≈ side, ~242–248pt), which looks intentional but needs iPad-specific treatment to feel native. Checked 2026-08-13 on iPad Pro 13-inch (M5) / iOS 27 sim. Effort: M.
+- [ ] **Size tall menus to the full scroll content, not the first viewport** — `RowBoundsKey` measures rows via `.listRowBackground`, but the List virtualizes offscreen rows, so for content taller than the viewport the sheet pins to the first viewport's height instead of the full content. Proposed fix: when the scroll content overflows the viewport, size to `contentSize + contentInsets` instead of the row-based balanced target. Affects iPhone too; most visible on iPad's large canvas. Effort: M.
