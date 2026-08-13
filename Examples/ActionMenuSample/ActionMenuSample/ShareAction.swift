@@ -17,33 +17,37 @@
 // limitations under the License.
 
 import SwiftUI
+import UIKit
 
-@MainActor @preconcurrency
-public struct ShareAction {
-  private func presentActivityViewController(for items: [Any]) {
-    let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+/// A SwiftUI wrapper that presents the system share sheet for the given items.
+///
+/// UIKit is required here: `ShareLink` is a view that only presents when tapped, so it cannot be
+/// triggered from a button *action*. This is the project's documented UIKit exception (AGENTS.md) —
+/// programmatic share presentation is impossible in pure SwiftUI.
+struct ShareSheet: UIViewControllerRepresentable {
+  let activityItems: [Any]
 
-    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-       let rootViewController = windowScene.windows.first?.rootViewController {
-      var topController = rootViewController
-      while let presentedViewController = topController.presentedViewController {
-        topController = presentedViewController
-      }
-      topController.present(activityVC, animated: true, completion: nil)
-    }
+  func makeUIViewController(context: Context) -> UIActivityViewController {
+    UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
   }
 
-  public func callAsFunction(_ item: URL, subject: Text? = nil, message: Text? = nil) {
-    let items = [item]
-    presentActivityViewController(for: items)
-  }
+  func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
 
-  public func callAsFunction(_ item: String, subject: Text? = nil, message: Text? = nil) {
-    let items = [item]
-    presentActivityViewController(for: items)
+/// The environment share action.
+///
+/// Calling it returns a `ShareSheet` view (not a presentation), so it must be placed in a
+/// presentation — e.g. the content of a `.sheet` driven by a deferred flag — rather than called
+/// from a button action, which would build and discard the view.
+struct ShareAction: Sendable {
+  nonisolated init() {}
+
+  @MainActor
+  func callAsFunction(_ item: String) -> some View {
+    ShareSheet(activityItems: [item])
   }
 }
 
 extension EnvironmentValues {
-  @Entry public var share: ShareAction = .init()
+  @Entry var share: ShareAction = ShareAction()
 }

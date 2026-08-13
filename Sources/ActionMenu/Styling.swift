@@ -21,33 +21,45 @@ import SwiftUI
 extension PrimitiveButtonStyle where Self == ActionMenuButtonStyle {
   /// A button style that dismisses the current view when the button is tapped.
   ///
-  /// This style is used for the buttons within the action menu. When a button with this style is tapped,
-  /// it first dismisses the sheet presenting the action menu, and then executes the button's action.
-  /// This ensures that the menu is gone before the action is performed.
+  /// When used inside an action menu sheet, tapping a button with this style records the button's
+  /// action and dismisses the sheet. The sheet executes the recorded action once it has disappeared,
+  /// ensuring the menu is gone before the action is performed.
+  ///
+  /// This standalone accessor is intended for previews and standalone use. It wires the style to a
+  /// constant, inert pending-action binding, so a tapped action is not executed outside of a sheet.
   static var action: ActionMenuButtonStyle {
-    ActionMenuButtonStyle()
+    .init(pendingAction: .constant(nil))
+  }
+}
+
+/// The key used to propagate whether the enclosing menu row is a destructive action.
+private struct IsDestructiveActionKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+extension EnvironmentValues {
+  /// Whether the enclosing menu row represents a destructive action.
+  var isDestructiveAction: Bool {
+    get { self[IsDestructiveActionKey.self] }
+    set { self[IsDestructiveActionKey.self] = newValue }
   }
 }
 
 struct ActionMenuButtonStyle: PrimitiveButtonStyle {
   @Environment(\.dismiss) private var dismiss
-  @State private var shouldExecuteAction = false
+  @Binding var pendingAction: (() -> Void)?
 
   func makeBody(configuration: Configuration) -> some View {
     Button {
-      shouldExecuteAction = true
+      pendingAction = { configuration.trigger() }
       dismiss()
     } label: {
       if configuration.role == .destructive {
         configuration.label
-          .foregroundStyle(Color(.systemRed))
+          .foregroundStyle(Color(uiColor: .systemRed))
+          .environment(\.isDestructiveAction, true)
       } else {
         configuration.label
-      }
-    }
-    .onDisappear {
-      if shouldExecuteAction {
-        configuration.trigger()
       }
     }
   }
@@ -62,15 +74,15 @@ extension LabelStyle where Self == MenuLabelStyle {
 }
 
 struct MenuLabelStyle: LabelStyle {
+  @Environment(\.isDestructiveAction) private var isDestructiveAction
   @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 22.0
-
 
   func makeBody(configuration: Configuration) -> some View {
     HStack(spacing: 22) {
       configuration.title
       Spacer()
       configuration.icon
-        .foregroundStyle(Color.primary)
+        .foregroundStyle(isDestructiveAction ? Color(uiColor: .systemRed) : Color.primary)
         .font(.system(size: iconSize, weight: .light))
     }
   }

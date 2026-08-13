@@ -18,20 +18,96 @@
 
 import SwiftUI
 
+/// The sheet's top chrome: the grabber/rounded-top area that the presentation renders above the
+/// `.height` detent value. Measured empirically (~21pt on iOS 26+ sheets); a fixed presentation
+/// constant rather than a device or list style, so it is shared across all menus.
+private let sheetTopChrome: CGFloat = 21
+
+/// Aggregated bounds of the menu's rows in global coordinates.
+///
+/// The rows are measured via a `GeometryReader` in each row's background so the detent can balance
+/// the sheet's bottom gap against the rows' own side margins, regardless of device or list style.
+private struct RowBounds: Equatable {
+  var minX: CGFloat = .infinity
+  var maxY: CGFloat = 0
+}
+
+/// Collects the global bounds of every menu row into a single `RowBounds` value.
+private struct RowBoundsKey: PreferenceKey {
+  static let defaultValue = RowBounds()
+  static func reduce(value: inout RowBounds, nextValue: () -> RowBounds) {
+    value.minX = min(value.minX, nextValue().minX)
+    value.maxY = max(value.maxY, nextValue().maxY)
+  }
+}
+
+/// A view modifier that sizes a presentation sheet to the height of its scrollable content.
+///
+/// It measures the menu rows' geometry relative to the sheet's root and applies the measured height
+/// as a single `.height` presentation detent, pinning the sheet to its content height. The detent
+/// is only computed while the List is at its rest (top) position: scrolling or bouncing the menu
+/// never resizes the sheet, and the row measurement is only trustworthy at rest. This also
+/// self-heals any previously corrupted detent at the next rest-state geometry event. The detent
+/// places the bottom menu row at the same distance from the sheet's bottom edge as its own side
+/// margins: `target = rowsBottomInSheet + sideMargin - sheetTopChrome`. A `.medium` detent is used
+/// as a fallback until the first measurement completes, preventing an invisible, zero-height sheet
+/// from flashing. There is no `.large` detent, so the drag indicator can only dismiss the sheet,
+/// not expand it; if the content is taller than the pinned height, the List scrolls within the
+/// sheet.
+struct SelfSizingSheetModifier: ViewModifier {
+  /// The currently applied detent height.
+  @State private var contentHeight: CGFloat = 0
+
+  /// The bottom edge of the last menu row, in global coordinates.
+  @Binding var rowsBottom: CGFloat
+
+  /// The leading edge of the menu rows, in global coordinates (their side margin).
+  @Binding var sideMargin: CGFloat
+
+  /// The top edge of the sheet's root view, in global coordinates.
+  @Binding var sheetTop: CGFloat
+
+  func body(content: Content) -> some View {
+    content
+      .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }, action: { _, newGeo in
+        // Skip until the List has laid out its content: the zero-sized first callback must not
+        // collapse the sheet below the `.medium` fallback.
+        guard newGeo.contentSize.height > 0 else { return }
+        guard rowsBottom > 0, sideMargin > 0, sheetTop > 0 else { return }
+        // Only size the sheet when the List is at its rest (top) position — a top-aligned scroll
+        // view rests at `contentOffset.y == -contentInsets.top`. Scrolling or bouncing the menu
+        // must never resize the sheet, and the row measurement is only trustworthy at rest (the
+        // row preference and the scroll geometry update asynchronously and can briefly disagree).
+        guard abs(newGeo.contentOffset.y + newGeo.contentInsets.top) < 2 else { return }
+        let rowsBottomInSheet = rowsBottom - sheetTop
+        let target = rowsBottomInSheet + sideMargin - sheetTopChrome
+        if contentHeight == 0 || abs(target - contentHeight) > 1 {
+          contentHeight = target
+        }
+      })
+      .presentationDetents(
+        contentHeight == 0
+        ? [.medium]
+        : [.height(contentHeight)]
+      )
+  }
+}
+
 struct ActionMenu<Content: View>: View {
   @Environment(\.dismiss) private var dismiss
+  @State private var pendingAction: (() -> Void)? = nil
+  @State private var rowsBottom: CGFloat = 0
+  @State private var sideMargin: CGFloat = 0
+  @State private var sheetTop: CGFloat = 0
 
   let title: String
-  @Binding var contentSize: CGSize
   let content: Content
 
   init(
     title: String = "Options",
-    contentSize: Binding<CGSize>,
     @ContentBuilder content: () -> Content
   ) {
     self.title = title
-    self._contentSize = contentSize
     self.content = content()
   }
 
@@ -39,14 +115,23 @@ struct ActionMenu<Content: View>: View {
     NavigationStack {
       List {
         content
+          .listRowBackground(
+            GeometryReader { proxy in
+              let frame = proxy.frame(in: .global)
+              Color(uiColor: .secondarySystemGroupedBackground)  // restore the grouped card look
+                .preference(key: RowBoundsKey.self, value: RowBounds(minX: frame.minX, maxY: frame.maxY))
+            }
+          )
       }
-      .onScrollGeometryChange(for: CGSize.self, of: { proxy in
-        proxy.contentSize
-      }, action: { _, newSize in
-        contentSize = newSize
-      })
+      .onPreferenceChange(RowBoundsKey.self) { bounds in
+        rowsBottom = bounds.maxY
+        sideMargin = bounds.minX
+      }
+      .modifier(
+        SelfSizingSheetModifier(rowsBottom: $rowsBottom, sideMargin: $sideMargin, sheetTop: $sheetTop)
+      )
       .labelStyle(.menu)
-      .buttonStyle(.action)
+      .buttonStyle(ActionMenuButtonStyle(pendingAction: $pendingAction))
       .tint(.primary)
       .navigationTitle(title)
       .navigationBarTitleDisplayMode(.inline)
@@ -56,6 +141,7 @@ struct ActionMenu<Content: View>: View {
             Button("", systemImage: "xmark") {
               dismiss()
             }
+            .accessibilityLabel("Close")
           } else {
             Button("Done") {
               dismiss()
@@ -64,6 +150,16 @@ struct ActionMenu<Content: View>: View {
         }
       }
     }
+    .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).minY }) { top in
+      sheetTop = top
+    }
+    .onDisappear {
+      pendingAction?()
+      pendingAction = nil
+    }
+    .onAppear {
+      pendingAction = nil
+    }
   }
 }
 
@@ -71,10 +167,6 @@ struct ActionMenuModifier<MenuContent: View>: ViewModifier {
   let title: String
   @Binding var isPresented: Bool
   let menuContent: MenuContent
-
-  @State private var menuContentSize: CGSize = .zero
-
-  @Environment(\.dismiss) private var dismiss
 
   init(title: String, isPresented: Binding<Bool>, @ContentBuilder menuContent: () -> MenuContent) {
     self.title = title
@@ -85,14 +177,9 @@ struct ActionMenuModifier<MenuContent: View>: ViewModifier {
   func body(content: Content) -> some View {
     content
       .sheet(isPresented: $isPresented) {
-        ActionMenu(title: title, contentSize: $menuContentSize) {
+        ActionMenu(title: title) {
           menuContent
         }
-        .presentationDetents(
-          menuContentSize == .zero
-          ? [.medium, .large]
-          : [.height(menuContentSize.height + 34), .large]
-        )
       }
   }
 }
@@ -136,12 +223,12 @@ extension View {
   /// ```
   ///
   /// - Parameters:
-  ///   - title: The title to display in the navigation bar of the action menu.
+  ///   - title: The title to display in the navigation bar of the action menu. Defaults to `"Options"`.
   ///   - isPresented: A binding to a Boolean value that determines whether to present the action menu.
   ///   - content: A `@ContentBuilder` closure that creates the content of the action menu. This is typically a list of `Button`s.
   public func actionMenu(
-    title: String, isPresented: Binding<Bool>,
-    @ContentBuilder content: @escaping () -> some View
+    title: String = "Options", isPresented: Binding<Bool>,
+    @ContentBuilder content: () -> some View
   ) -> some View {
     modifier(
       ActionMenuModifier(
@@ -204,7 +291,7 @@ extension View {
   ]
   @Previewable @State var selectedFruit: String? = nil
 
-  ActionMenu(title: "Actions", contentSize: .constant(.zero)) {
+  ActionMenu(title: "Actions") {
     Section("Text Operations") {
       Button("Uppercase", systemImage: "characters.uppercase") {
         if let selectedFruit = selectedFruit,

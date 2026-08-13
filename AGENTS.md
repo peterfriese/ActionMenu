@@ -231,6 +231,12 @@ After completing any task, IMMEDIATELY update:
 ### 4. Prohibited Technologies
 
 - No UIKit unless SwiftUI is genuinely impossible for the use case
+  - **Documented exception — programmatic share presentation:** SwiftUI's `ShareLink`
+    only presents when its rendered view is tapped; there is no programmatic API to
+    present a share sheet from a button *action*. When an action must present a share
+    sheet after the action menu dismisses (the deferred-trigger contract), use UIKit's
+    `UIActivityViewController`, presented from the presenting root view. Reference
+    implementation: `Examples/ActionMenuSample/ActionMenuSample/ShareAction.swift`.
 - No Combine unless explicitly approved — prefer async/await and `@Observable`
 - No third-party dependencies unless explicitly approved — this is a dependency-free library
 
@@ -245,6 +251,7 @@ After completing any task, IMMEDIATELY update:
   - `test:` — adding or updating tests
   - `style:` — formatting, whitespace (no logic change)
 - Keep commit messages concise (<72 chars for the subject line)
+- Pull request titles MUST also follow conventional commits (`<type>: <description>`, same type list as commits), since the PR title becomes the squash-merge commit subject.
 
 ### 6. Self-Improvement (Mandatory)
 
@@ -344,3 +351,74 @@ struct MenuLabelStyle: LabelStyle {
 ```
 
 This pattern ensures buttons render with neutral foreground colors regardless of the app's accent/tint color configuration.
+
+### Deferred Action Trigger (Sheet-Level Pending Action)
+
+Action menu buttons must run their action only after the sheet is gone. The first attempt at this is **deprecated** because it was unreliable.
+
+**Deprecated (buggy) pattern:** `@State shouldExecuteAction` inside a `PrimitiveButtonStyle`, firing `configuration.trigger()` from the *style's* own `onDisappear`. Failure modes:
+
+- **Actions silently dropped** when `dismiss()` is a no-op (no sheet to dismiss) — the armed flag is never consumed, so the trigger never runs.
+- **Armed flag misfiring** on a later, unrelated `onDisappear` (swipe-dismiss cancellation, row recycling, toolbar dismissal), running an action that was never tapped.
+- **Two different buttons firing** during the dismiss animation, because each button's style armed its own flag and both `onDisappear` callbacks ran.
+
+**Current pattern:** the sheet view owns the pending action, not the button style:
+
+```swift
+struct ActionMenu<Content: View>: View {
+  @State private var pendingAction: (() -> Void)? = nil
+  // ...
+  .buttonStyle(ActionMenuButtonStyle(pendingAction: $pendingAction))
+  .onDisappear {
+    pendingAction?()
+    pendingAction = nil
+  }
+  .onAppear {
+    pendingAction = nil
+  }
+}
+```
+
+The button style receives `@Binding var pendingAction: (() -> Void)?`. On tap it stores the trigger and dismisses:
+
+```swift
+Button {
+  pendingAction = { configuration.trigger() }
+  dismiss()
+} label: { /* ... */ }
+```
+
+**Contract:**
+- The action fires exactly once, and only after the sheet is gone (`onDisappear`).
+- Swipe-dismiss fires nothing — `pendingAction` was never armed.
+- Rapid double-tap: last write wins — at most one action fires.
+
+**Destructive-action awareness:** `Styling.swift` uses a private `IsDestructiveActionKey` `EnvironmentKey` (`\.isDestructiveAction`) so `MenuLabelStyle` can color the row's icon red for destructive roles without a per-row parameter.
+
+This behavior is covered by the `ActionMenuSampleUITests` XCUITest suite.
+
+### Self-Sizing Sheet (Internal Modifier)
+
+`ActionMenu` sizes its sheet via an internal `SelfSizingSheetModifier` in `ActionMenu.swift` instead of leaking a `contentSize: Binding<CGSize>` through `ActionMenu.init`.
+
+- The modifier owns `@State private var contentHeight: CGFloat` and applies it as a `.height` presentation detent.
+- It measures the rows' geometry at runtime: each row gets a `GeometryReader` background (via `.listRowBackground`) that reports its **global** frame through a private `RowBoundsKey` `PreferenceKey`; `ActionMenu` aggregates the last row's bottom edge (`rowsBottom`) and the rows' leading margin (`sideMargin`), and also tracks the sheet root's global top (`sheetTop`, via `onGeometryChange` on the `NavigationStack`). The row background is rendered with the system grouped card color (`Color(uiColor: .secondarySystemGroupedBackground)`) so the measurement does not alter the row's appearance — do not "simplify" it back to `Color.clear`.
+- The detent is **detent-independent** (no fixed point) and **rest-gated**: it uses the rows' position relative to the sheet root, `rowsBottomInSheet = rowsBottom - sheetTop`, but only computes the detent while the List is at its rest (top) position — `abs(contentOffset.y + contentInsets.top) < 2` (a top-aligned scroll view rests at `-contentInsets.top`). Scrolling or bouncing the menu's List never resizes the sheet (the row preference and the scroll geometry update asynchronously and can briefly disagree, so the measurement is only trustworthy at rest), and the gate also self-heals any previously corrupted detent at the next rest-state geometry event. The target is `rowsBottomInSheet + sideMargin - sheetTopChrome`, where `sheetTopChrome` (≈21pt) is the sheet's grabber/rounded-top area that the presentation renders above the `.height` value — a fixed presentation constant, not a device or list style. Measuring inside a named coordinate space anchored at the sheet root was tried but is unreliable: the `.listRowBackground` views do not resolve the SwiftUI named space correctly.
+- The sheet is **pinned to its content height**: a single `.height` presentation detent (no `.large`), so the drag indicator can only dismiss the sheet, never expand it; if the content is taller than the pinned height, the List scrolls within the sheet. It falls back to `.medium` until the first measurement so the sheet never flashes at zero height. The zero-sized pre-layout scroll-geometry callback is skipped so it cannot collapse the sheet.
+- It throttles detent updates: re-applies only when the target changes meaningfully since the last applied detent (`contentHeight == 0 || abs(target - contentHeight) > 1`).
+- Conventions: `title` defaults to `"Options"` consistently on both `ActionMenu.init` and the public `.actionMenu(...)` modifier; public content closures are non-escaping `@ContentBuilder` closures (consumed synchronously).
+
+### Share Action Inside the Menu (Deferred + UIKit Exception)
+
+The sample's Share row cannot be a `ShareLink` rendered inside the action menu:
+- `share(...)`/`ShareLink` returns a *view* that only presents when tapped while alive
+  in the hierarchy. Calling it from a `Button` action builds and discards the view — a
+  silent no-op.
+- A `ShareLink` row inside the menu is also subject to the ambient
+  `.buttonStyle(ActionMenuButtonStyle)`, which dismisses the sheet without presenting.
+
+Working pattern: a menu `Button` sets a deferred flag (fires after the menu dismisses,
+per the deferred-trigger contract); the root view then presents a UIKit
+`UIActivityViewController` (via a `UIViewControllerRepresentable` in a `.sheet`, or from
+the root view controller). This is the project's documented UIKit exception — programmatic
+share presentation is genuinely impossible in pure SwiftUI.

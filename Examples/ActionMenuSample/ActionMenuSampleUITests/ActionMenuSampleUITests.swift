@@ -1,0 +1,418 @@
+//
+//  ActionMenuSampleUITests.swift
+//  ActionMenuSampleUITests
+//
+//  Created by Peter Friese on 13.08.26.
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+
+import XCTest
+
+/// UI tests for the ActionMenu sample app.
+///
+/// These tests exercise the deferred-trigger design of the action menu: tapping an action button
+/// records it as a pending action and dismisses the sheet; the action fires exactly once, only
+/// after the sheet is gone.
+@MainActor
+final class ActionMenuSampleUITests: XCTestCase {
+
+  // A fresh instance is created for every test method, so `app` is always a clean application.
+  private let app = XCUIApplication()
+
+  override func setUpWithError() throws {
+    continueAfterFailure = false
+  }
+
+  // MARK: - Test 1: "Duplicate" fires exactly once
+
+  /// Tapping "Duplicate" inserts exactly one copy of the selected fruit.
+  ///
+  /// The fruit count going up by exactly 1 is the probe for the deferred trigger: if the action
+  /// fired twice, the count would go up by 2 and this test would fail.
+  func testDuplicateFiresExactlyOnce() throws {
+    launch()
+
+    let before = countOfFruit("Apple")
+    XCTAssertEqual(before, 1, "A fresh launch should show exactly one 'Apple' row.")
+
+    presentMenu(for: "Apple")
+    app.buttons["Duplicate"].tap()
+    waitForMenuToDisappear()
+
+    // The duplicate is inserted by the deferred action after the sheet is gone. Wait for the list
+    // to settle at before + 1. If the action double-fired, the count would jump past this value
+    // and this wait would time out.
+    waitForFruitCount("Apple", before + 1)
+
+    let after = countOfFruit("Apple")
+    XCTAssertEqual(
+      after, before + 1,
+      "Duplicate must insert exactly one copy. If the action fired twice the count would be \(before + 2)."
+    )
+  }
+
+  // MARK: - Test 2: Interactive (swipe-down) dismissal fires nothing
+
+  /// Swiping the menu sheet down without tapping a row must run no action, and the menu must
+  /// remain fully functional afterwards.
+  func testSwipeDownDismissFiresNothing() throws {
+    launch()
+
+    let before = countOfFruit("Apple")
+    XCTAssertEqual(before, 1)
+
+    presentMenu(for: "Apple")
+    dismissMenuBySwipingDown()
+    waitForMenuToDisappear()
+
+    // Nothing should have run: no uppercasing, no row changes.
+    XCTAssertEqual(countOfFruit("Apple"), before, "Swiping the menu away must not change the fruit list.")
+    XCTAssertFalse(app.staticTexts["APPLE"].exists, "Swiping the menu away must not fire any action.")
+
+    // The menu must still be functional after an interactive dismiss: "Uppercase" should turn
+    // "Apple" into "APPLE" once the menu is gone.
+    presentMenu(for: "Apple")
+    app.buttons["Uppercase"].tap()
+    waitForMenuToDisappear()
+    waitForStaticText("APPLE")
+
+    XCTAssertTrue(app.staticTexts["APPLE"].exists, "Uppercase should have turned 'Apple' into 'APPLE'.")
+    XCTAssertFalse(app.staticTexts["Apple"].exists, "The original 'Apple' row should be gone after uppercasing.")
+  }
+
+  // MARK: - Test 3: Secondary sheet presents after the menu dismisses
+
+  /// "Say hello" must present the "Hello, World!" sheet only after the action menu has fully
+  /// dismissed, proving the deferred trigger.
+  ///
+  /// The ordering is proven with a single combined expectation that resolves only when the
+  /// secondary sheet exists AND the menu's nav bar does not — a post-hoc check would pass even if
+  /// the sheet were presented over the still-open menu.
+  func testSecondarySheetPresentsAfterMenuDismisses() throws {
+    launch()
+
+    presentMenu(for: "Apple")
+    app.buttons["Say hello"].tap()
+
+    let helloText = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Hello, World!")).firstMatch
+
+    // Resolve only when the sheet is up and the menu is gone at the same observed moment.
+    let orderingPredicate = NSPredicate { _, _ in
+      helloText.exists && !self.app.navigationBars["Actions"].exists
+    }
+    let expectation = XCTNSPredicateExpectation(predicate: orderingPredicate, object: nil)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [expectation], timeout: 5),
+      .completed,
+      "The 'Hello, World!' sheet must appear only after the action menu has dismissed."
+    )
+  }
+
+  // MARK: - Test 4: Close dismisses without firing an action
+
+  /// Tapping the toolbar "Close" button (accessibility label) must dismiss the menu without
+  /// firing any action.
+  func testCloseButtonDismissesMenuWithoutFiringAction() throws {
+    launch()
+
+    let before = countOfFruit("Apple")
+    XCTAssertEqual(before, 1)
+
+    presentMenu(for: "Apple")
+
+    // Preferred: the "Close" accessibility label exposed by the iOS 26+ xmark button.
+    let closeButton = app.buttons["Close"]
+    if closeButton.waitForExistence(timeout: 2) {
+      closeButton.tap()
+    } else {
+      // Fallback for environments where the element tree differs: first toolbar button in the menu.
+      let toolbarButton = app.navigationBars["Actions"].buttons.firstMatch
+      XCTAssertTrue(toolbarButton.waitForExistence(timeout: 3), "The menu's toolbar button should exist.")
+      toolbarButton.tap()
+    }
+
+    waitForMenuToDisappear()
+
+    XCTAssertEqual(countOfFruit("Apple"), before, "Closing the menu must not change the fruit list.")
+    XCTAssertFalse(app.staticTexts["APPLE"].exists, "Closing the menu must not fire any action.")
+  }
+
+  // MARK: - Test 5: Bottom action row is fully visible
+
+  /// The sheet's self-sizing detent must balance the bottom gap with the rows' side margins, so
+  /// the bottom "Delete Item" row is never clipped by the sheet's bottom edge.
+  ///
+  /// Measured on iPhone 17, iOS 27: with the pre-fix detent the button's bottom gap was ~92pt
+  /// (over-sized); the balanced detent brings it to ~26pt against a ~23.4pt side margin. The
+  /// 10pt accuracy discriminates the two while tolerating device differences, and the 15pt floor
+  /// guarantees the row can never regress to a clipped state (pre-fix clipped gap was −7.4pt).
+  func testBottomRowIsFullyVisible() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let deleteButton = app.buttons["Delete Item"]
+    XCTAssertTrue(deleteButton.waitForExistence(timeout: 5), "The 'Delete Item' button should be visible.")
+
+    let windowBottom = app.windows.firstMatch.frame.maxY
+    let bottomGap = windowBottom - deleteButton.frame.maxY
+    let sideGap = deleteButton.frame.minX
+
+    XCTAssertEqual(
+      bottomGap, sideGap, accuracy: 10,
+      "The bottom gap should be balanced against the row's side margins."
+    )
+    XCTAssertGreaterThanOrEqual(bottomGap, 15, "The bottom action row must never be clipped.")
+  }
+
+  // MARK: - Test 6: Pinned sheet resists expansion
+
+  /// The sheet is pinned to its content height (no `.large` detent): dragging the sheet upward
+  /// must not expand it — the bottom "Delete Item" row stays balanced against its side margins.
+  func testSheetStaysPinnedWhenDraggedUp() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let deleteButton = app.buttons["Delete Item"]
+    XCTAssertTrue(deleteButton.waitForExistence(timeout: 5), "The 'Delete Item' button should be visible.")
+    let windowBottom = app.windows.firstMatch.frame.maxY
+    let balancedGap = windowBottom - deleteButton.frame.maxY
+    let sideGap = deleteButton.frame.minX
+    XCTAssertEqual(balancedGap, sideGap, accuracy: 10, "The sheet should start at its balanced size.")
+
+    // Deliberately attempt to expand: drag the nav bar to near the top of the screen.
+    let navBar = app.navigationBars["Actions"]
+    navBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+      .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
+    sleep(1)
+
+    // The sheet must not have grown: still balanced, still presented.
+    XCTAssertTrue(navBar.exists, "The sheet should still be presented after the drag-up attempt.")
+    let afterGap = windowBottom - deleteButton.frame.maxY
+    XCTAssertEqual(afterGap, sideGap, accuracy: 10, "The pinned sheet must not expand when dragged up.")
+  }
+
+  // MARK: - Test 7: Pinned sheet stays pinned when the list scrolls
+
+  /// Scrolling the menu's List must never resize the pinned sheet: the sheet's top (the nav bar
+  /// frame) stays put.
+  ///
+  /// Note: the button's bottom gap is the wrong assertion here — the button moves up with the
+  /// scroll, so it appears to grow a gap even though the sheet did not change size.
+  func testSheetStaysPinnedWhenListScrolls() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let navBar = app.navigationBars["Actions"]
+    XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The action menu should be presented.")
+    let beforeFrame = navBar.frame
+
+    // A genuine scroll attempt on the list content, then return the list to the top.
+    app.buttons["Duplicate"].swipeUp()
+    waitForScrollToSettle()
+    app.buttons["Duplicate"].swipeDown()
+    waitForScrollToSettle()
+
+    XCTAssertTrue(navBar.exists, "The sheet should still be presented after the list scroll attempt.")
+    let afterFrame = navBar.frame
+    XCTAssertEqual(afterFrame.minY, beforeFrame.minY, accuracy: 2, "The pinned sheet must not shrink when its list scrolls.")
+    XCTAssertEqual(afterFrame.height, beforeFrame.height, accuracy: 2, "The nav bar should be unchanged.")
+
+    // No leftover extra padding: the bottom row is back to its balanced gap against the side margins.
+    let deleteButton = app.buttons["Delete Item"]
+    XCTAssertTrue(deleteButton.exists, "The 'Delete Item' button should still be visible.")
+    let windowBottom = app.windows.firstMatch.frame.maxY
+    let bottomGap = windowBottom - deleteButton.frame.maxY
+    let sideGap = deleteButton.frame.minX
+    XCTAssertEqual(bottomGap, sideGap, accuracy: 10, "The sheet must not pump extra padding after a scroll bounce.")
+  }
+
+  // MARK: - Test 8: Share dismisses the menu via the deferred trigger
+
+  /// Tapping "Share" must fire the deferred trigger: the menu dismisses, then the root presents the
+  /// share sheet (a UIKit `UIActivityViewController`, the project's documented UIKit exception for
+  /// programmatic share presentation).
+  ///
+  /// The share sheet's "Close" button is the automation anchor — the activity items themselves are
+  /// not exposed as queryable buttons in this configuration.
+  func testSharePresentsShareSheet() throws {
+    launch()
+    presentMenu(for: "Apple")
+
+    let shareButton = app.buttons["Share"]
+    XCTAssertTrue(shareButton.waitForExistence(timeout: 5), "The 'Share' row should exist in the menu.")
+    shareButton.tap()
+
+    waitForMenuToDisappear()
+
+    let closeButton = app.buttons["Close"]
+    XCTAssertTrue(closeButton.waitForExistence(timeout: 5), "The share sheet should appear after the menu dismisses.")
+    XCTAssertFalse(app.staticTexts["APPLE"].exists, "Tapping Share must not run any other action.")
+
+    // Dismiss the share sheet cleanly and confirm we're back at the fruit list.
+    closeButton.tap()
+    let closeGone = NSPredicate(format: "exists == false")
+    let expectation = XCTNSPredicateExpectation(predicate: closeGone, object: closeButton)
+    _ = XCTWaiter().wait(for: [expectation], timeout: 5)
+    XCTAssertTrue(
+      app.navigationBars["Fruits"].waitForExistence(timeout: 3),
+      "The fruit list should be visible after dismissing the share sheet."
+    )
+  }
+
+  // MARK: - Test 9: Menu size demo presents the menu
+
+  /// The "Menu Size Demo" section must present a pinned sheet for the selected menu size, and the
+  /// demo menu must dismiss cleanly via its Close button.
+  func testMenuSizeDemoPresentsMenu() throws {
+    launch()
+
+    // Select "Large" in the segmented picker if it is queryable.
+    let largeSegment = app.buttons["Large"]
+    if largeSegment.waitForExistence(timeout: 3) {
+      largeSegment.tap()
+    }
+
+    // Tap the "Show … menu" button (label follows the selected size).
+    let showButton = app.buttons["Show Large menu"].exists
+      ? app.buttons["Show Large menu"]
+      : app.buttons["Show Medium menu"]
+    XCTAssertTrue(showButton.waitForExistence(timeout: 3), "The 'Show menu' button should exist.")
+    showButton.tap()
+
+    // The demo menu presents with the selected size's nav bar title.
+    let navBar = app.navigationBars["Large Menu"].exists
+      ? app.navigationBars["Large Menu"]
+      : app.navigationBars["Medium Menu"]
+    XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The demo menu should be presented.")
+    XCTAssertTrue(
+      app.buttons["Uppercase"].waitForExistence(timeout: 3),
+      "The demo menu should show its action rows."
+    )
+
+    // Dismiss via the Close button and confirm it is gone.
+    let closeButton = app.buttons["Close"]
+    XCTAssertTrue(closeButton.waitForExistence(timeout: 3), "The menu's Close button should be visible.")
+    closeButton.tap()
+    let gone = NSPredicate(format: "exists == false")
+    let expectation = XCTNSPredicateExpectation(predicate: gone, object: navBar)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [expectation], timeout: 5),
+      .completed,
+      "The demo menu should be dismissed."
+    )
+  }
+
+  // MARK: - Helpers
+
+  /// Launches a fresh instance of the app and waits for the main fruit list.
+  private func launch() {
+    app.launch()
+    XCTAssertTrue(
+      app.navigationBars["Fruits"].waitForExistence(timeout: 5),
+      "The fruit list should appear after launch."
+    )
+  }
+
+  /// Swipes left on the row for `fruitName`, taps the "More" swipe action and waits for the
+  /// action menu sheet to be presented.
+  private func presentMenu(for fruitName: String) {
+    let cell = app.cells.containing(.staticText, identifier: fruitName).firstMatch
+    let elementToSwipe: XCUIElement
+    if cell.waitForExistence(timeout: 3) {
+      elementToSwipe = cell
+    } else {
+      // Fallback: swipe directly on the static text if the cell query cannot resolve the row.
+      elementToSwipe = app.staticTexts[fruitName]
+      XCTAssertTrue(elementToSwipe.waitForExistence(timeout: 3), "Row for '\(fruitName)' should exist.")
+    }
+
+    elementToSwipe.swipeLeft()
+
+    let moreButton = app.buttons["More"]
+    XCTAssertTrue(moreButton.waitForExistence(timeout: 3), "The 'More' swipe action should be revealed.")
+    moreButton.tap()
+
+    XCTAssertTrue(
+      app.navigationBars["Actions"].waitForExistence(timeout: 3),
+      "The action menu sheet should be presented."
+    )
+  }
+
+  /// Drags the presented action menu sheet downwards to trigger an interactive dismissal.
+  ///
+  /// Starting the drag on the sheet's navigation bar avoids scrolling the menu's List instead of
+  /// dragging the sheet.
+  private func dismissMenuBySwipingDown() {
+    let navBar = app.navigationBars["Actions"]
+    XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The action menu sheet should be presented.")
+    let start = navBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
+    start.press(forDuration: 0.05, thenDragTo: end)
+  }
+
+  /// Blocks until the action menu's navigation bar has disappeared.
+  private func waitForMenuToDisappear(timeout: TimeInterval = 5) {
+    let predicate = NSPredicate(format: "exists == false")
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: app.navigationBars["Actions"])
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [expectation], timeout: timeout),
+      .completed,
+      "The action menu sheet should disappear."
+    )
+  }
+
+  /// Waits until the menu rows stop moving (the scroll animation has settled) instead of using a
+  /// fixed sleep, so the wait adapts to simulator/device speed.
+  private func waitForScrollToSettle(timeout: TimeInterval = 3) {
+    var lastFrame: CGRect = .zero
+    let settled = NSPredicate { _, _ in
+      let current = self.app.buttons["Uppercase"].frame
+      let isStable = lastFrame != .zero && current == lastFrame
+      lastFrame = current
+      return isStable
+    }
+    let expectation = XCTNSPredicateExpectation(predicate: settled, object: nil)
+    _ = XCTWaiter().wait(for: [expectation], timeout: timeout)
+  }
+
+  /// Blocks until a static text whose label equals `text` exists.
+  private func waitForStaticText(_ text: String, timeout: TimeInterval = 5) {
+    let predicate = NSPredicate { _, _ in
+      self.app.staticTexts[text].exists
+    }
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: nil)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [expectation], timeout: timeout),
+      .completed,
+      "Static text '\(text)' should appear."
+    )
+  }
+
+  /// Number of static texts whose label is exactly `fruitName`.
+  private func countOfFruit(_ fruitName: String) -> Int {
+    app.staticTexts.matching(NSPredicate(format: "label == %@", fruitName)).count
+  }
+
+  /// Blocks until the number of static texts with label `fruitName` equals `expected`.
+  private func waitForFruitCount(_ fruitName: String, _ expected: Int, timeout: TimeInterval = 5) {
+    let predicate = NSPredicate { _, _ in
+      self.countOfFruit(fruitName) == expected
+    }
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: nil)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [expectation], timeout: timeout),
+      .completed,
+      "Expected \(expected) row(s) labelled '\(fruitName)'."
+    )
+  }
+}
