@@ -33,8 +33,8 @@ struct SelfSizingSheetModifier: ViewModifier {
       .onScrollGeometryChange(for: CGSize.self, of: { proxy in
         proxy.contentSize
       }, action: { oldSize, newSize in
-        // Not-yet-measured OR meaningful change → update; otherwise skip to avoid re-applying the detent on every scroll tick.
-        if contentHeight == 0 || abs(newSize.height - oldSize.height) > 1 {
+        // Update when not yet measured, or when the height changed meaningfully since the last applied detent.
+        if contentHeight == 0 || abs(newSize.height - contentHeight) > 1 {
           contentHeight = newSize.height
         }
       })
