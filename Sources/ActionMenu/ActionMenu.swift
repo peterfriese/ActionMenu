@@ -18,21 +18,43 @@
 
 import SwiftUI
 
+/// A view modifier that sizes a presentation sheet to the height of its scrollable content.
+///
+/// It measures the scroll content size of the modified view (typically a `List`) and applies
+/// the measured height as a `.height` presentation detent. The scroll content size is measured
+/// instead of the view's own frame to avoid a feedback loop between the detent height and the
+/// measured size. A `.medium` detent is used as a fallback until the first measurement
+/// completes, preventing an invisible, zero-height sheet from flashing.
+struct SelfSizingSheetModifier: ViewModifier {
+  @State private var contentHeight: CGFloat = 0
+
+  func body(content: Content) -> some View {
+    content
+      .onScrollGeometryChange(for: CGSize.self, of: { proxy in
+        proxy.contentSize
+      }, action: { _, newSize in
+        contentHeight = newSize.height
+      })
+      .presentationDetents(
+        contentHeight == 0
+        ? [.medium, .large]
+        : [.height(contentHeight), .large]
+      )
+  }
+}
+
 struct ActionMenu<Content: View>: View {
   @Environment(\.dismiss) private var dismiss
   @State private var pendingAction: (() -> Void)? = nil
 
   let title: String
-  @Binding var contentSize: CGSize
   let content: Content
 
   init(
     title: String = "Options",
-    contentSize: Binding<CGSize>,
     @ContentBuilder content: () -> Content
   ) {
     self.title = title
-    self._contentSize = contentSize
     self.content = content()
   }
 
@@ -41,11 +63,7 @@ struct ActionMenu<Content: View>: View {
       List {
         content
       }
-      .onScrollGeometryChange(for: CGSize.self, of: { proxy in
-        proxy.contentSize
-      }, action: { _, newSize in
-        contentSize = newSize
-      })
+      .modifier(SelfSizingSheetModifier())
       .labelStyle(.menu)
       .buttonStyle(ActionMenuButtonStyle(pendingAction: $pendingAction))
       .tint(.primary)
@@ -81,8 +99,6 @@ struct ActionMenuModifier<MenuContent: View>: ViewModifier {
   @Binding var isPresented: Bool
   let menuContent: MenuContent
 
-  @State private var menuContentSize: CGSize = .zero
-
   init(title: String, isPresented: Binding<Bool>, @ContentBuilder menuContent: () -> MenuContent) {
     self.title = title
     self._isPresented = isPresented
@@ -92,14 +108,9 @@ struct ActionMenuModifier<MenuContent: View>: ViewModifier {
   func body(content: Content) -> some View {
     content
       .sheet(isPresented: $isPresented) {
-        ActionMenu(title: title, contentSize: $menuContentSize) {
+        ActionMenu(title: title) {
           menuContent
         }
-        .presentationDetents(
-          menuContentSize == .zero
-          ? [.medium, .large]
-          : [.height(menuContentSize.height + 34), .large]
-        )
       }
   }
 }
@@ -211,7 +222,7 @@ extension View {
   ]
   @Previewable @State var selectedFruit: String? = nil
 
-  ActionMenu(title: "Actions", contentSize: .constant(.zero)) {
+  ActionMenu(title: "Actions") {
     Section("Text Operations") {
       Button("Uppercase", systemImage: "characters.uppercase") {
         if let selectedFruit = selectedFruit,
