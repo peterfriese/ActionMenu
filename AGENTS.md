@@ -251,6 +251,7 @@ After completing any task, IMMEDIATELY update:
   - `test:` — adding or updating tests
   - `style:` — formatting, whitespace (no logic change)
 - Keep commit messages concise (<72 chars for the subject line)
+- Pull request titles MUST also follow conventional commits (`<type>: <description>`, same type list as commits), since the PR title becomes the squash-merge commit subject.
 
 ### 6. Self-Improvement (Mandatory)
 
