@@ -260,6 +260,49 @@ final class ActionMenuSampleUITests: XCTestCase {
     )
   }
 
+  // MARK: - Test 9: Menu size demo presents the menu
+
+  /// The "Menu Size Demo" section must present a pinned sheet for the selected menu size, and the
+  /// demo menu must dismiss cleanly via its Close button.
+  func testMenuSizeDemoPresentsMenu() throws {
+    launch()
+
+    // Select "Large" in the segmented picker if it is queryable.
+    let largeSegment = app.buttons["Large"]
+    if largeSegment.waitForExistence(timeout: 3) {
+      largeSegment.tap()
+    }
+
+    // Tap the "Show … menu" button (label follows the selected size).
+    let showButton = app.buttons["Show Large menu"].exists
+      ? app.buttons["Show Large menu"]
+      : app.buttons["Show Medium menu"]
+    XCTAssertTrue(showButton.waitForExistence(timeout: 3), "The 'Show menu' button should exist.")
+    showButton.tap()
+
+    // The demo menu presents with the selected size's nav bar title.
+    let navBar = app.navigationBars["Large Menu"].exists
+      ? app.navigationBars["Large Menu"]
+      : app.navigationBars["Medium Menu"]
+    XCTAssertTrue(navBar.waitForExistence(timeout: 3), "The demo menu should be presented.")
+    XCTAssertTrue(
+      app.buttons["Uppercase"].waitForExistence(timeout: 3),
+      "The demo menu should show its action rows."
+    )
+
+    // Dismiss via the Close button and confirm it is gone.
+    let closeButton = app.buttons["Close"]
+    XCTAssertTrue(closeButton.waitForExistence(timeout: 3), "The menu's Close button should be visible.")
+    closeButton.tap()
+    let gone = NSPredicate(format: "exists == false")
+    let expectation = XCTNSPredicateExpectation(predicate: gone, object: navBar)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [expectation], timeout: 5),
+      .completed,
+      "The demo menu should be dismissed."
+    )
+  }
+
   // MARK: - Helpers
 
   /// Launches a fresh instance of the app and waits for the main fruit list.
