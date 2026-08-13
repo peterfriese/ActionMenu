@@ -110,7 +110,10 @@ The `ActionMenu` can be styled using standard SwiftUI techniques. The default ap
 
 ### Toolbar Dismiss Button
 
-The toolbar uses a standard `xmark.circle.fill` dismiss button, consistent with the Mail.app action menu pattern. No backporting is needed — the button works across all supported iOS versions.
+The toolbar's dismiss button is version-branched inline in `ActionMenu.swift` via `if #available(iOS 26, *)`:
+
+- **iOS 26+:** an icon-only `Button("", systemImage: "xmark")` with an `.accessibilityLabel("Close")`.
+- **iOS < 26:** a plain "Done" text button.
 
 ## Contributing
 

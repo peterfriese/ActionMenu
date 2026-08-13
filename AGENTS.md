@@ -344,3 +344,48 @@ struct MenuLabelStyle: LabelStyle {
 ```
 
 This pattern ensures buttons render with neutral foreground colors regardless of the app's accent/tint color configuration.
+
+### Deferred Action Trigger (Sheet-Level Pending Action)
+
+Action menu buttons must run their action only after the sheet is gone. The first attempt at this is **deprecated** because it was unreliable.
+
+**Deprecated (buggy) pattern:** `@State shouldExecuteAction` inside a `PrimitiveButtonStyle`, firing `configuration.trigger()` from the *style's* own `onDisappear`. Failure modes:
+
+- **Actions silently dropped** when `dismiss()` is a no-op (no sheet to dismiss) — the armed flag is never consumed, so the trigger never runs.
+- **Armed flag misfiring** on a later, unrelated `onDisappear` (swipe-dismiss cancellation, row recycling, toolbar dismissal), running an action that was never tapped.
+- **Two different buttons firing** during the dismiss animation, because each button's style armed its own flag and both `onDisappear` callbacks ran.
+
+**Current pattern:** the sheet view owns the pending action, not the button style:
+
+```swift
+struct ActionMenu<Content: View>: View {
+  @State private var pendingAction: (() -> Void)? = nil
+  // ...
+  .buttonStyle(ActionMenuButtonStyle(pendingAction: $pendingAction))
+  .onDisappear {
+    pendingAction?()
+    pendingAction = nil
+  }
+  .onAppear {
+    pendingAction = nil
+  }
+}
+```
+
+The button style receives `@Binding var pendingAction: (() -> Void)?`. On tap it stores the trigger and dismisses:
+
+```swift
+Button {
+  pendingAction = { configuration.trigger() }
+  dismiss()
+} label: { /* ... */ }
+```
+
+**Contract:**
+- The action fires exactly once, and only after the sheet is gone (`onDisappear`).
+- Swipe-dismiss fires nothing — `pendingAction` was never armed.
+- Rapid double-tap: last write wins — at most one action fires.
+
+**Destructive-action awareness:** `Styling.swift` uses a private `IsDestructiveActionKey` `EnvironmentKey` (`\.isDestructiveAction`) so `MenuLabelStyle` can color the row's icon red for destructive roles without a per-row parameter.
+
+This behavior is covered by the `ActionMenuSampleUITests` XCUITest suite.
