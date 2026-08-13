@@ -56,7 +56,7 @@ struct ActionMenuButtonStyle: PrimitiveButtonStyle {
     } label: {
       if configuration.role == .destructive {
         configuration.label
-          .foregroundStyle(Color.red)
+          .foregroundStyle(Color(uiColor: .systemRed))
           .environment(\.isDestructiveAction, true)
       } else {
         configuration.label
@@ -82,7 +82,7 @@ struct MenuLabelStyle: LabelStyle {
       configuration.title
       Spacer()
       configuration.icon
-        .foregroundStyle(isDestructiveAction ? Color.red : Color.primary)
+        .foregroundStyle(isDestructiveAction ? Color(uiColor: .systemRed) : Color.primary)
         .font(.system(size: iconSize, weight: .light))
     }
   }
