@@ -37,7 +37,7 @@ Add the following dependency to your `Package.swift` file:
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/peterfriese/ActionMenu", from: "0.2.1")
+  .package(url: "https://github.com/peterfriese/ActionMenu", from: "0.3.1")
 ]
 ```
 
